@@ -40,7 +40,8 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
         if MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith(
                 "/载具") or MessageStr.startswith("/最近"):
             # if member.id in WhiteId:
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + BFservers(member.id, MessageStr))]))
+            await app.sendGroupMessage(group, MessageChain.create(
+                [At(member.id), Plain("\n" + BFservers(member.id, MessageStr))]))
         elif MessageStr.startswith("/战绩"):
             MessageGet = BFservers(member.id, MessageStr)
             if MessageGet.startswith("头像"):
@@ -83,9 +84,9 @@ async def Member_join(app: GraiaMiraiApplication, group: Group, member: Member):
 
 
 @bcc.receiver("MemberLeaveEventKick")  # 群员被T
-async def Member_kick(app: GraiaMiraiApplication, group: Group, member: Member):
+async def Member_kick(app: GraiaMiraiApplication, group: Group, member: Member = "target"):
     await app.sendGroupMessage(group, MessageChain.create(
-        [Plain(str(operator.name) + "(" + str(operator.id) + ")" + "因语言过激，被管理员移出了本群。")]))
+        [Plain(str(member.name) + "(" + str(member.id) + ")" + "因语言过激，被管理员移出了本群。")]))
 
 
 @bcc.receiver("MemberLeaveEventQuit")  # 群员离开
