@@ -65,17 +65,21 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
 async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    url = "https://api.lolicon.app/setu/?apikey=29940345603b0900e86736&r18=2"
-    try:
-        data = json.loads(requests.get(url).text)
-        pinyinStr = ""
-        for i in range(len(lazy_pinyin(message.asDisplay()))):
-            pinyinStr += lazy_pinyin(message.asDisplay())[i]
-        if pinyinStr.find("setu") >= 0:
-            await app.sendGroupMessage(group, MessageChain.create(
-                [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
-    except:
-        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，找不到色图了呢~")]))
+    url = "https://api.lolicon.app/setu/?apikey=29940345603b0900e86736"
+    pinyinStr = ""
+    for i in range(len(lazy_pinyin(message.asDisplay()))):
+        pinyinStr += lazy_pinyin(message.asDisplay())[i]
+    if pinyinStr.find("setu") >= 0:
+        try:
+            data = json.loads(requests.get(url, timeout=5).text)
+            if data['code'] == 0:
+                await app.sendGroupMessage(group, MessageChain.create(
+                    [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+            else:
+                await app.sendGroupMessage(group, MessageChain.create(
+                    [At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
+        except requests.exceptions.RequestException:
+            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，找不到色图了呢~")]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
