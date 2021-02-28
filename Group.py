@@ -11,6 +11,9 @@ from graia.application.group import Group, Member, Optional
 
 import asyncio
 import re
+import requests
+import json
+from pypinyin import lazy_pinyin
 
 from match import AutoReply
 from battlefield import BFservers, Binding
@@ -62,9 +65,17 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
 async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    if message.asDisplay().find("色图") >= 0 or message.asDisplay().find("涩图") >= 0:
-        await app.sendGroupMessage(group, MessageChain.create(
-            [At(member.id), Image.fromNetworkAddress("https://api.ixiaowai.cn/api/api.php")]))
+    url = "https://api.lolicon.app/setu/?apikey=29940345603b0900e86736&r18=2"
+    try:
+        data = json.loads(requests.get(url).text)
+        pinyinStr = ""
+        for i in range(len(lazy_pinyin(message.asDisplay()))):
+            pinyinStr += lazy_pinyin(message.asDisplay())[i]
+        if pinyinStr.find("setu") >= 0:
+            await app.sendGroupMessage(group, MessageChain.create(
+                [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+    except:
+        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，找不到色图了呢~")]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
