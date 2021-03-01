@@ -2,22 +2,22 @@
 from graia.broadcast import Broadcast
 from graia.application import GraiaMiraiApplication, Session
 from graia.application.message.chain import MessageChain
-
 from graia.application.friend import Friend
-
 from graia.application.message.elements.internal import At, Plain, Image
 from graia.application.session import Session
 from graia.application.group import Group, Member, Optional
 
 import asyncio
 import re
-import requests
 import json
 from pypinyin import lazy_pinyin
 
 from match import AutoReply
 from battlefield import BFservers, Binding
 from Botstatus import Botstatus
+from XunProxy import aioRequest
+
+from config import LoliconKey
 
 WhiteGroup = {454375504, 863715876, 306800820, 1136543076}
 WhiteId = {1341283988}
@@ -44,9 +44,9 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                 "/载具") or MessageStr.startswith("/最近"):
             # if member.id in WhiteId:
             await app.sendGroupMessage(group, MessageChain.create(
-                [At(member.id), Plain("\n" + BFservers(member.id, MessageStr))]))
+                [At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
         elif MessageStr.startswith("/战绩"):
-            MessageGet = BFservers(member.id, MessageStr)
+            MessageGet = await BFservers(member.id, MessageStr)
             if MessageGet.startswith("头像"):
                 avatar = re.findall('头像:(.*)', MessageGet)[0]
                 MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
@@ -57,7 +57,7 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
 
         elif MessageStr.startswith("/帮助"):
             await app.sendGroupMessage(group, MessageChain.create(
-                [At(member.id), Plain("\n" + BFservers(member.id, MessageStr))]))
+                [At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
         elif MessageStr.startswith("/绑定"):
             await app.sendGroupMessage(group, MessageChain.create(
                 [At(member.id), Plain(Binding(member.id, MessageStr.replace("/绑定", "").replace(" ", "")))]))
@@ -65,21 +65,26 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
 async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    url = "https://api.lolicon.app/setu/?apikey=29940345603b0900e86736"
     pinyinStr = ""
     for i in range(len(lazy_pinyin(message.asDisplay()))):
         pinyinStr += lazy_pinyin(message.asDisplay())[i]
     if pinyinStr.find("setu") >= 0:
         try:
-            data = json.loads(requests.get(url, timeout=5).text)
+            url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
+            data = json.loads(await aioRequest(url))
             if data['code'] == 0:
-                await app.sendGroupMessage(group, MessageChain.create(
-                    [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+            if data['code'] == 429:
+                url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+                data = json.loads(await aioRequest(url))
+                if data['code'] == 0:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
             else:
-                await app.sendGroupMessage(group, MessageChain.create(
-                    [At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-        except requests.exceptions.RequestException:
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，找不到色图了呢~")]))
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
+        except:
+            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
