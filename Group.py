@@ -17,10 +17,11 @@ from battlefield import BFservers, Binding
 from Botstatus import Botstatus
 from XunProxy import aioRequest
 
-from config import LoliconKey
+from config import LoliconKey, Admin
 
 WhiteGroup = {454375504, 863715876, 306800820, 1136543076}
 WhiteId = {1341283988}
+BanSetu = {1136543076}
 
 loop = asyncio.get_event_loop()
 
@@ -69,22 +70,25 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
     for i in range(len(lazy_pinyin(message.asDisplay()))):
         pinyinStr += lazy_pinyin(message.asDisplay())[i]
     if pinyinStr.find("setu") >= 0:
-        try:
-            url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
-            data = json.loads(await aioRequest(url))
-            if data['code'] == 0:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
-            if data['code'] == 429:
-                url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+        if group.id not in BanSetu:
+            try:
+                url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
                 data = json.loads(await aioRequest(url))
                 if data['code'] == 0:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                elif data['code'] == 429:
+                    url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+                    data = json.loads(await aioRequest(url))
+                    if data['code'] == 0:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                    else:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-            else:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-        except:
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
+            except:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
+        else:
+            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("本群因管理要求已禁止使用色图功能╮(╯▽╰)╭")]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
@@ -113,6 +117,16 @@ async def Member_kick(app: GraiaMiraiApplication, group: Group, member: Member =
 async def Member_quit(app: GraiaMiraiApplication, group: Group, member: Member):
     await app.sendGroupMessage(group, MessageChain.create(
         [Plain("一根丧失梦想的薯条" + str(member.name) + "(" + str(member.id) + ")" + "心灰意冷地离开了本群")]))
+
+
+@bcc.receiver("BotMuteEvent")  # 机器人被禁言
+async def Bot_muted(app: GraiaMiraiApplication, group: Group, member: Member):
+    await app.sendFriendMessage(Admin, MessageChain.create([Plain("已被"+str(member.name)+"在"+str(group.name)+"禁言")]))
+
+
+@bcc.receiver("BotUnmuteEvent")  # 机器人解除禁言
+async def Bot_unmuted(app: GraiaMiraiApplication, group: Group, member: Member):
+    await app.sendFriendMessage(Admin, MessageChain.create([Plain("已被"+str(member.name)+"在"+str(group.name)+"解除禁言")]))
 
 
 @bcc.receiver("FriendMessage")  # 自动回复好友消息及表情
