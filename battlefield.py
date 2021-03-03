@@ -2,6 +2,7 @@ import requests
 import json
 import opencc
 import csv
+import re
 import asyncio
 from bs4 import BeautifulSoup
 from XunProxy import aioRequest
@@ -133,20 +134,24 @@ def Binding(id, name):
     line = -1
     idList = []
     nameList = []
-    f = open('id.csv', 'r')
+    CorrectName = ''.join(re.findall('[a-zA-Z0-9-_]', name))
+    if CorrectName == "":
+        return "绑定失败：请勿绑定空昵称！"
+    print(CorrectName)
+    f = open('id.csv', 'r', encoding="utf-8")
     read = csv.reader(f)
     for index, info in enumerate(read):
         if str(id) == info[0]:
             line = index
             idList.append(info[0])
-            nameList.append(name)
+            nameList.append(CorrectName)
         else:
             idList.append(info[0])
             nameList.append(info[1])
         # print(index, info[1])
     if line == -1:
         idList.append(id)
-        nameList.append(name)
+        nameList.append(CorrectName)
 
     f1 = open('id.csv', 'w+', newline='', encoding="utf-8")
     writer = csv.writer(f1)
@@ -156,7 +161,7 @@ def Binding(id, name):
         csvList = csvList + [(idList[i], nameList[i])]
     for j in csvList:
         writer.writerow(j)
-    return "当前QQ绑定的ID为：[" + str(name) + "]"
+    return "当前QQ绑定的ID为：[" + str(CorrectName) + "]"
 
 
 def FindBinding(id):
