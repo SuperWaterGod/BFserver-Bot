@@ -3,7 +3,7 @@ from graia.broadcast import Broadcast
 from graia.application import GraiaMiraiApplication, Session
 from graia.application.message.chain import MessageChain
 from graia.application.friend import Friend
-from graia.application.message.elements.internal import At, Plain, Image
+from graia.application.message.elements.internal import At, Plain, Image, Voice
 from graia.application.session import Session
 from graia.application.group import Group, Member, Optional
 
@@ -12,16 +12,16 @@ import re
 import json
 from pypinyin import lazy_pinyin
 
-from match import AutoReply
+from match import AutoReply, AutoVoice
 from battlefield import BFservers, Binding
 from Botstatus import Botstatus
 from XunProxy import aioRequest
 
 from config import LoliconKey, Admin
 
-WhiteGroup = {454375504, 863715876, 306800820, 1136543076}
+WhiteGroup = {454375504, 863715876, 306800820, 1136543076, 781963214}
 WhiteId = {1341283988}
-BanSetu = {1136543076}
+BanSetu = {1136543076, 781963214}
 
 loop = asyncio.get_event_loop()
 
@@ -75,14 +75,21 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
                 url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
                 data = json.loads(await aioRequest(url))
                 if data['code'] == 0:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                    messageId = await app.sendGroupMessage(group, MessageChain.create(
+                        [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                    await asyncio.sleep(60)
+                    await app.revokeMessage(messageId)
                 elif data['code'] == 429:
                     url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
                     data = json.loads(await aioRequest(url))
                     if data['code'] == 0:
-                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                        messageId = await app.sendGroupMessage(group, MessageChain.create(
+                            [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                        await asyncio.sleep(60)
+                        await app.revokeMessage(messageId)
                     else:
-                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
+                        await app.sendGroupMessage(group,
+                                                   MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
             except:
@@ -93,12 +100,22 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
 async def AutoReply_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    if AutoReply(message.asDisplay()).startswith("./Menhera/"):
-        await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(AutoReply(message.asDisplay()))]))
-    elif AutoReply(message.asDisplay()) == "":
+    MessageGet = AutoReply(message.asDisplay())
+    if MessageGet.startswith("./Menhera/"):
+        await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(MessageGet)]))
+    elif MessageGet == "":
         pass
     else:
-        await app.sendGroupMessage(group, MessageChain.create([Plain(AutoReply(message.asDisplay()))]))
+        await app.sendGroupMessage(group, MessageChain.create([Plain(MessageGet)]))
+
+
+@bcc.receiver("GroupMessage")  # 自动回复语音
+async def AutoVoice_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
+    MessageGet = AutoVoice(message.asDisplay())
+    if MessageGet.startswith("./voice/"):
+        await app.sendGroupMessage(group, MessageChain.create([Voice().fromLocalFile(MessageGet)]))
+    elif MessageGet == "":
+        pass
 
 
 @bcc.receiver("MemberJoinEvent")  # 新人加入群
@@ -121,12 +138,14 @@ async def Member_quit(app: GraiaMiraiApplication, group: Group, member: Member):
 
 @bcc.receiver("BotMuteEvent")  # 机器人被禁言
 async def Bot_muted(app: GraiaMiraiApplication, group: Group, member: Member):
-    await app.sendFriendMessage(Admin, MessageChain.create([Plain("已被"+str(member.name)+"在"+str(group.name)+"禁言")]))
+    await app.sendFriendMessage(Admin,
+                                MessageChain.create([Plain("已被" + str(member.name) + "在" + str(group.name) + "禁言")]))
 
 
 @bcc.receiver("BotUnmuteEvent")  # 机器人解除禁言
 async def Bot_unmuted(app: GraiaMiraiApplication, group: Group, member: Member):
-    await app.sendFriendMessage(Admin, MessageChain.create([Plain("已被"+str(member.name)+"在"+str(group.name)+"解除禁言")]))
+    await app.sendFriendMessage(Admin,
+                                MessageChain.create([Plain("已被" + str(member.name) + "在" + str(group.name) + "解除禁言")]))
 
 
 @bcc.receiver("FriendMessage")  # 自动回复好友消息及表情

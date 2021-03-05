@@ -53,6 +53,25 @@ AutoReplyImage = [
     ['dalao', '140.jpg']
 ]
 
+AutoReplyVoice = [
+    ['早上好', '早上好.silk'],
+    ['OK', 'OK.silk'],
+    ['啊这', '啊这.silk'],
+    ['爱你', '爱你.silk'],
+    ['拜托了', '拜托了.silk'],
+    ['不可能', '不可能.silk'],
+    ['吵死了', '吵死了.silk'],
+    ['大家好', '大家好.silk'],
+    ['好臭', '好臭.silk'],
+    ['警察', '警察.silk'],
+    ['可爱', '可爱.silk'],
+    ['了解', '了解.silk'],
+    ['晚安', '晚安.silk'],
+    ['辛苦了', '辛苦了.silk'],
+    ['糟了', '糟了.silk'],
+    ['干得漂亮', '干得漂亮.silk']
+]
+
 
 def AutoReply(message):
     a = 0
@@ -64,5 +83,15 @@ def AutoReply(message):
         if message.find(AutoReplyImage[i][0]) >= 0:
             a = 1
             return "./Menhera/" + AutoReplyImage[i][1]
+    if a == 0:
+        return ""
+
+
+def AutoVoice(message):
+    a = 0
+    for i in range(len(AutoReplyVoice)):
+        if message == AutoReplyVoice[i][0]:
+            a = 1
+            return "./voice/" + AutoReplyVoice[i][1]
     if a == 0:
         return ""
