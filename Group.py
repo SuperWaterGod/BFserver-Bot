@@ -17,11 +17,12 @@ from battlefield import BFservers, Binding
 from Botstatus import Botstatus
 from XunProxy import aioRequest
 
-from config import LoliconKey, Admin
+from config import LoliconKey, Admin, Bot
 
-WhiteGroup = {454375504, 863715876, 306800820, 1136543076, 781963214}
-WhiteId = {1341283988}
-BanSetu = {1136543076, 781963214}
+WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214]
+WhiteId = [1341283988]
+BlackId = []
+BanSetu = [1136543076, 781963214]
 
 loop = asyncio.get_event_loop()
 
@@ -31,7 +32,7 @@ app = GraiaMiraiApplication(
     connect_info=Session(
         host="http://localhost:8080",  # 填入 httpapi 服务运行的地址
         authKey="INITKEYfiyhSQvQ",  # 填入 authKey
-        account=2781851088,  # 你的机器人的 qq 号
+        account=Bot,  # 你的机器人的 qq 号
         websocket=True  # Graia 已经可以根据所配置的消息接收的方式来保证消息接收部分的正常运作.
     )
 )
@@ -41,20 +42,23 @@ app = GraiaMiraiApplication(
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     MessageStr = message.asDisplay()
     if group.id in WhiteGroup:
-        if MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith(
-                "/载具") or MessageStr.startswith("/最近"):
-            # if member.id in WhiteId:
-            await app.sendGroupMessage(group, MessageChain.create(
-                [At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
-        elif MessageStr.startswith("/战绩"):
-            MessageGet = await BFservers(member.id, MessageStr)
-            if MessageGet.startswith("头像"):
-                avatar = re.findall('头像:(.*)', MessageGet)[0]
-                MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
-                await app.sendGroupMessage(group, MessageChain.create(
-                    [At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]))
+        if MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
+            if member.id in BlackId:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
+        elif MessageStr.startswith("/战绩"):
+            if member.id in BlackId:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
+            else:
+                MessageGet = await BFservers(member.id, MessageStr)
+                if MessageGet.startswith("头像"):
+                    avatar = re.findall('头像:(.*)', MessageGet)[0]
+                    MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
+                    await app.sendGroupMessage(group, MessageChain.create(
+                        [At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]))
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
 
         elif MessageStr.startswith("/帮助"):
             await app.sendGroupMessage(group, MessageChain.create(
@@ -70,32 +74,35 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
     for i in range(len(lazy_pinyin(message.asDisplay()))):
         pinyinStr += lazy_pinyin(message.asDisplay())[i]
     if pinyinStr.find("setu") >= 0:
-        if group.id not in BanSetu:
-            try:
-                url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
-                data = json.loads(await aioRequest(url))
-                if data['code'] == 0:
-                    messageId = await app.sendGroupMessage(group, MessageChain.create(
-                        [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
-                    await asyncio.sleep(60)
-                    await app.revokeMessage(messageId)
-                elif data['code'] == 429:
-                    url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+        if member.id in BlackId:
+            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
+        else:
+            if group.id not in BanSetu:
+                try:
+                    url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
                     data = json.loads(await aioRequest(url))
                     if data['code'] == 0:
                         messageId = await app.sendGroupMessage(group, MessageChain.create(
                             [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
                         await asyncio.sleep(60)
                         await app.revokeMessage(messageId)
+                    elif data['code'] == 429:
+                        url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+                        data = json.loads(await aioRequest(url))
+                        if data['code'] == 0:
+                            messageId = await app.sendGroupMessage(group, MessageChain.create(
+                                [At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                            await asyncio.sleep(60)
+                            await app.revokeMessage(messageId)
+                        else:
+                            await app.sendGroupMessage(group,
+                                                       MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
                     else:
-                        await app.sendGroupMessage(group,
-                                                   MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-                else:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-            except:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
-        else:
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("本群因管理要求已禁止使用色图功能╮(╯▽╰)╭")]))
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
+                except:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
+            else:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("本群因管理要求已禁止使用色图功能╮(╯▽╰)╭")]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
@@ -116,6 +123,23 @@ async def AutoVoice_Group_listener(message: MessageChain, app: GraiaMiraiApplica
         await app.sendGroupMessage(group, MessageChain.create([Voice().fromLocalFile(MessageGet)]))
     elif MessageGet == "":
         pass
+
+
+@bcc.receiver("GroupMessage")  # 加入黑名单
+async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
+    if message.has(At):
+        AtLsit = []
+        for i in range(len(message.get(At))):
+            AtLsit.append(int(re.findall('target=(.*) ', str(message.get(At)[i]))[0]))
+        for i in range(len(AtLsit)):
+            if AtLsit[i] == Bot:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("@我没有用哦~")]))
+                pinyinStr = ""
+                for i in range(len(lazy_pinyin(message.asDisplay()))):
+                    pinyinStr += lazy_pinyin(message.asDisplay())[i]
+                if pinyinStr.find("shabi") >= 0:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("不理你了！")]))
+                    BlackId.append(member.id)
 
 
 @bcc.receiver("MemberJoinEvent")  # 新人加入群
@@ -150,12 +174,13 @@ async def Bot_unmuted(app: GraiaMiraiApplication, group: Group, member: Member):
 
 @bcc.receiver("FriendMessage")  # 自动回复好友消息及表情
 async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
-    if AutoReply(message.asDisplay()).startswith("./Menhera/"):
-        await app.sendFriendMessage(friend, MessageChain.create([Image.fromLocalFile(AutoReply(message.asDisplay()))]))
-    elif AutoReply(message.asDisplay()) == "":
+    MessageGet = AutoReply(message.asDisplay())
+    if MessageGet.startswith("./Menhera/"):
+        await app.sendFriendMessage(friend, MessageChain.create([Image.fromLocalFile(MessageGet)]))
+    elif MessageGet == "":
         pass
     else:
-        await app.sendFriendMessage(friend, MessageChain.create([Plain(AutoReply(message.asDisplay()))]))
+        await app.sendFriendMessage(friend, MessageChain.create([Plain(MessageGet)]))
 
 
 app.launch_blocking()
