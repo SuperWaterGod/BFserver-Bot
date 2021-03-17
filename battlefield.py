@@ -13,7 +13,7 @@ cc = opencc.OpenCC('t2s')
 async def ServerList(name):
     if name == "":
         name = "[LSP]"
-    url = "https://api.gametools.network/bf1/servers/?name=" + name + "&lang=zh-TW"
+    url = "https://api.jobse.space/bf1/servers/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -34,7 +34,7 @@ async def ServerList(name):
 async def Stats(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.gametools.network/bf1/stats/?name=" + name
+    url = "https://api.jobse.space/bf1/stats/?name=" + name
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -54,7 +54,7 @@ async def Stats(name):
 async def Weapons(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.gametools.network/bf1/weapons/?name=" + name + "&lang=zh-TW"
+    url = "https://api.jobse.space/bf1/weapons/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -80,7 +80,7 @@ async def Weapons(name):
 async def Vehicles(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.gametools.network/bf1/vehicles/?name=" + name + "&lang=zh-TW"
+    url = "https://api.jobse.space/bf1/vehicles/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -123,9 +123,41 @@ async def Recent(name):
                 if times > 3:
                     break
         except:
-            return "查询昵称有误或战绩网站已经崩溃！"
+            return "查询昵称有误！"
         returnStr = returnStr + "\n"
         return returnStr.replace("\n\n", "")
+    else:
+        return "查询超时，请稍后再试！"
+
+
+async def TempStats(name):
+    if name is None:
+        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
+    url = "https://battlefieldtracker.com/bf1/profile/pc/" + name
+    html = await aioRequest(url)
+    if html is not None:
+        bs = BeautifulSoup(html, "html.parser")
+        try:
+            data = bs.find(name="div", attrs={"class": "card player-general"})
+            rank = data.find_all(name="span", attrs={"class": "title"})
+            content = []
+            content.append(''.join(re.findall('[0-9]', rank[0].string)))
+            details = data.find_all(name="div", attrs={"class": "value"})
+            content.append(details[1].string)
+            content.append(details[2].string)
+            content.append(details[4].string)
+            stats = bs.find_all(name="div", attrs={"class": "stats-large"})
+            performance = stats[0].find_all(name="div", attrs={"class": "value"})
+            content.append(''.join(re.findall('[0-9.,%]', performance[2].string)))
+            content.append(''.join(re.findall('[0-9.,%]', performance[6].string)))
+            content.append(''.join(re.findall('[0-9.,%]', performance[7].string)))
+            general = stats[1].find_all(name="div", attrs={"class": "value"})
+            content.append(''.join(re.findall('[0-9.,%]', general[5].string)))
+            content.append(''.join(re.findall('[0-9.,%]', general[6].string)))
+            returnStr = "昵称:" + name + "\n等级:" + content[0] + "\nKD:" + content[1] + "\n胜率:" + content[2] + "\n游戏时间:" + content[3] + "\nSPM:" + content[4] + "\n场均击杀:" + content[5] + "\nKPM:" + content[6] + "\n技巧值:" +content[7] + "\n精准度:" + content[8]
+        except:
+            return "查询昵称有误！"
+        return returnStr
     else:
         return "查询超时，请稍后再试！"
 
@@ -196,7 +228,7 @@ async def BFservers(id, command):
         else:
             return await Recent(command.replace("/最近", "").replace(" ", ""))
     elif command.startswith("/帮助"):
-        return "本程序由Super水神编写，暂时仅供LSP和PKEM服务器使用。\n目前支持的战地1功能为：\n“/绑定+（空格）+[ID]”、\n“/服务器+（空格）+[名称]”、\n“/战绩+（空格）+[ID]”、\n“/武器+（空格）+[ID]”、\n" \
+        return "本程序由Super水神编写，暂时仅供LSP、PKEM以及ECO服务器使用。\n目前支持的战地1功能为：\n“/绑定+（空格）+[ID]”、\n“/服务器+（空格）+[名称]”、\n“/战绩+（空格）+[ID]”、\n“/武器+（空格）+[ID]”、\n" \
                "“/载具+（id）”、\n“/最近+（id）”、\n“/帮助”\n以上命令无需输入+和（）\n由于该程序相当简陋，请温柔对待哦(●'◡'●) "
     else:
         pass

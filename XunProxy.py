@@ -49,7 +49,7 @@ async def aioRequest(url):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"
     }
     i = 0
-    while i < 3:
+    while i < 5:
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url, timeout=5, headers=headers) as resp:
