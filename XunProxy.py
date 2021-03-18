@@ -15,7 +15,6 @@ is_python3 = (_version[0] == 3)
 
 
 def XunProxy(url):
-
     timestamp = str(int(time.time()))
     string = "orderno=" + Xunorderno + ",secret=" + Xunsecret + ",timestamp=" + timestamp
     if is_python3:
@@ -52,7 +51,7 @@ async def aioRequest(url):
     while i < 5:
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.get(url, timeout=5, headers=headers) as resp:
+                async with session.get(url, timeout=5, headers=headers, verify_ssl=False) as resp:
                     return await resp.text()
             except:
                 i += 1
