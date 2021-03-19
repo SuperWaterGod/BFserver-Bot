@@ -3,9 +3,13 @@ import json
 import opencc
 import csv
 import re
+import time
 import asyncio
+import random
+from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
-from XunProxy import aioRequest
+from XunProxy import aioRequest, PicDownload
+from picture import AlphaPicOverlay
 
 cc = opencc.OpenCC('t2s')
 
@@ -18,7 +22,7 @@ async def ServerList(name):
     if html is not None:
         data = json.loads(cc.convert(html))
         if len(data['servers']) == 0:
-            return "未搜索到相关服务器或者EA服务器已经崩溃！"
+            return "未能搜索到相关服务器。"
         else:
             returnStr = ""
             for i in range(len(data['servers'])):
@@ -27,6 +31,57 @@ async def ServerList(name):
                     data['servers'][i]['currentMap']) + "\n" + "===================" + "\n"
             returnStr = returnStr + "\n"
             return returnStr.replace("\n\n", "")
+    else:
+        return "查询超时，请稍后再试！"
+
+
+async def PicServerList(name):
+    if name == "":
+        name = "[LSP]"
+    url = "https://api.jobse.space/bf1/servers/?name=" + name + "&lang=zh-TW"
+    bg = "./pic/server_bg" + str(random.randint(1, 4)) + ".png"
+    SavePic = "./Temp/" + str(int(time.time())) + ".png"
+
+    html = await aioRequest(url)
+    if html is not None:
+        titleFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=70)
+        searchFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=35)
+        nameFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=25)
+        detailFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=20)
+        im = Image.open(bg)
+        draw = ImageDraw.Draw(im)
+        draw.text((300, 40), "伺服器列表", font=titleFont)
+        draw.text((300, 120), "搜索内容：" + name.replace("%20", " "), font=searchFont)
+        im.save(SavePic)
+        data = json.loads(html)
+        if len(data['servers']) == 0:
+            im = Image.open(SavePic)
+            draw = ImageDraw.Draw(im)
+            draw.text((800, 500), "找不到伺服器", font=searchFont)
+            draw.text((795, 545), "變更篩選條件並重試", font=nameFont)
+            im.save(SavePic)
+        else:
+            for i in range(len(data['servers'])):
+                title = str(data['servers'][i]['prefix'])
+                queue = str(data['servers'][i]['serverInfo']) + "[" + str(data['servers'][i]['inQue']) + "]"
+                pic = str(data['servers'][i]['url'])
+                detail = str(data['servers'][i]['mode']) + " - " + str(data['servers'][i]['currentMap']) + " - 60HZ"
+
+                PicUrl = await PicDownload(pic)
+                im = Image.open(SavePic)
+                im1 = Image.open(PicUrl)
+                im1.thumbnail((144, 84))
+                im.paste(im1, (250, 200 + 100 * i))
+
+                draw = ImageDraw.Draw(im)
+                draw.text((400, 210 + 100 * i), title, font=nameFont)
+                draw.text((1400, 210 + 100 * i), queue, font=nameFont)
+                draw.text((400, 250 + 100 * i), detail, font=detailFont)
+                im.save(SavePic)
+                AlphaPicOverlay(SavePic, "./pic/ping-best.png", SavePic, 1510, 210 + 100 * i)
+                if i >= 7:
+                    break
+        return SavePic
     else:
         return "查询超时，请稍后再试！"
 
@@ -154,7 +209,8 @@ async def TempStats(name):
             general = stats[1].find_all(name="div", attrs={"class": "value"})
             content.append(''.join(re.findall('[0-9.,%]', general[5].string)))
             content.append(''.join(re.findall('[0-9.,%]', general[6].string)))
-            returnStr = "昵称:" + name + "\n等级:" + content[0] + "\nKD:" + content[1] + "\n胜率:" + content[2] + "\n游戏时间:" + content[3] + "\nSPM:" + content[4] + "\n场均击杀:" + content[5] + "\nKPM:" + content[6] + "\n技巧值:" +content[7] + "\n精准度:" + content[8]
+            returnStr = "昵称:" + name + "\n等级:" + content[0] + "\nKD:" + content[1] + "\n胜率:" + content[2] + "\n游戏时间:" + content[3] + "\nSPM:" + content[4] + "\n场均击杀:" + content[
+                5] + "\nKPM:" + content[6] + "\n技巧值:" + content[7] + "\n精准度:" + content[8]
         except:
             return "查询昵称有误！"
         return returnStr
@@ -206,7 +262,7 @@ def FindBinding(id):
 
 async def BFservers(id, command):
     if command.startswith("/服务器"):
-        return await ServerList(command.replace("/服务器", "").replace(" ", ""))
+        return await PicServerList(command.replace("/服务器 ", "").replace("/服务器", "").replace(" ", "%20"))
     elif command.startswith("/战绩"):
         if command.replace("/战绩", "") == "":
             return await Stats(FindBinding(id))

@@ -56,3 +56,22 @@ async def aioRequest(url):
             except:
                 i += 1
     return None
+
+
+async def PicDownload(url):
+    file_name = "./pic" + url[url.rfind('/'):]
+    try:
+        fp = open(file_name, 'rb')
+        fp.close()
+        return file_name
+    except:
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url, timeout=5, headers=headers, verify_ssl=False) as resp:
+                    pic = await resp.read()
+                    fp = open(file_name, 'wb')
+                    fp.write(pic)
+                    fp.close()
+                    return file_name
+            except:
+                return "./pic/play.png"

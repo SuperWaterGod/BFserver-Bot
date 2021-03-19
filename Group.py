@@ -48,7 +48,7 @@ app = GraiaMiraiApplication(
 @sche.schedule(timers.every_custom_seconds(60))
 async def Schedule_Task():
     UseTime = time.strftime('%H:%M', time.localtime(time.time()))
-    if UseTime == "8:00":
+    if UseTime == "08:00":
         for i in range(len(ScheduleGroup)):
             await app.sendGroupMessage(ScheduleGroup[i], MessageChain.create([Image.fromLocalFile("./Menhera/121.png"), Plain("早早早(*´▽｀)ノノ")]))
     elif UseTime == "12:00":
@@ -69,7 +69,7 @@ async def Schedule_Task():
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     MessageStr = message.asDisplay()
     if group.id in WhiteGroup:
-        if MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
+        if MessageStr.startswith("/武器") or MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
@@ -85,7 +85,15 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]))
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
-
+        elif MessageStr.startswith("/服务器"):
+            if member.id in BlackId:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
+            else:
+                MessageGet = await BFservers(member.id, MessageStr)
+                if MessageGet.startswith("./"):
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile(MessageGet)]))
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
         elif MessageStr.startswith("/帮助"):
             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
         elif MessageStr.startswith("/绑定"):
@@ -203,8 +211,7 @@ async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplic
 async def Admin_Test(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
     if friend.id == Admin:
         if message.asDisplay().startswith("/test"):
-            print(await app.groupList())
-            # await app.sendFriendMessage(friend, MessageChain.create([Plain(MessageGet)]))
+            await app.sendFriendMessage(friend, MessageChain.create([Plain("ok")]))
 
 
 app.launch_blocking()
