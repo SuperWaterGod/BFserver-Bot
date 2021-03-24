@@ -10,6 +10,7 @@ from graia.scheduler import timers
 import graia.scheduler as scheduler
 
 import asyncio
+import os
 import re
 import json
 import time
@@ -18,7 +19,7 @@ from pypinyin import lazy_pinyin
 from match import AutoReply, AutoVoice
 from battlefield import BFservers, Binding
 from Botstatus import Botstatus
-from XunProxy import aioRequest
+from XunProxy import aioRequest, PicDownload
 from video import NewVideo
 
 from config import LoliconKey, Admin, Bot
@@ -27,7 +28,7 @@ WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214]
 WhiteId = [1341283988]
 BlackId = []
 BanSetu = [1136543076, 781963214]
-ScheduleGroup = [863715876, 781963214, 306800820, 1136543076]
+ScheduleGroup = [781963214, 306800820, 1136543076]
 BFUid = [18706000, 287122113, 526559715]
 
 loop = asyncio.get_event_loop()
@@ -92,12 +93,27 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                 MessageGet = await BFservers(member.id, MessageStr)
                 if MessageGet.startswith("./"):
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile(MessageGet)]))
+                    await asyncio.sleep(30)
+                    os.remove(MessageGet)
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
         elif MessageStr.startswith("/帮助"):
             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]))
         elif MessageStr.startswith("/绑定"):
             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain(Binding(member.id, MessageStr.replace("/绑定", "").replace(" ", "")))]))
+
+
+@bcc.receiver("GroupMessage")  # 收集群消息
+async def message_log(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
+    messageStr = message.asDisplay()
+    name = "./log/" + str(group.id) + ".log"
+    try:
+        fp = open(name, 'a+')
+        fp.write(messageStr)
+    except:
+        fp = open(name, 'w')
+        fp.write(messageStr)
+    fp.close()
 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
@@ -211,7 +227,7 @@ async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplic
 async def Admin_Test(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
     if friend.id == Admin:
         if message.asDisplay().startswith("/test"):
-            await app.sendFriendMessage(friend, MessageChain.create([Plain("ok")]))
+            await app.sendFriendMessage(friend, MessageChain.create([Plain(await PicDownload(message.asDisplay().replace("/test ")))]))
 
 
 app.launch_blocking()

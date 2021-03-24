@@ -65,13 +65,16 @@ async def PicDownload(url):
         fp.close()
         return file_name
     except:
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(url, timeout=5, headers=headers, verify_ssl=False) as resp:
-                    pic = await resp.read()
-                    fp = open(file_name, 'wb')
-                    fp.write(pic)
-                    fp.close()
-                    return file_name
-            except:
-                return "./pic/play.png"
+        i = 0
+        while i < 3:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(url, timeout=5, verify_ssl=False) as resp:
+                        pic = await resp.read()
+                        fp = open(file_name, 'wb')
+                        fp.write(pic)
+                        fp.close()
+                        return file_name
+                except:
+                    i += 1
+        return "./pic/play.jpg"

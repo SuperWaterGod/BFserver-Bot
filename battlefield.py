@@ -39,8 +39,8 @@ async def PicServerList(name):
     if name == "":
         name = "[LSP]"
     url = "https://api.jobse.space/bf1/servers/?name=" + name + "&lang=zh-TW"
-    bg = "./pic/server_bg" + str(random.randint(1, 4)) + ".png"
-    SavePic = "./Temp/" + str(int(time.time())) + ".png"
+    bg = "./pic/server_bg" + str(random.randint(1, 4)) + ".jpg"
+    SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
 
     html = await aioRequest(url)
     if html is not None:
@@ -78,7 +78,10 @@ async def PicServerList(name):
                 draw.text((1400, 210 + 100 * i), queue, font=nameFont)
                 draw.text((400, 250 + 100 * i), detail, font=detailFont)
                 im.save(SavePic)
-                AlphaPicOverlay(SavePic, "./pic/ping-best.png", SavePic, 1510, 210 + 100 * i)
+                if PicUrl == "./pic/play.jpg":
+                    AlphaPicOverlay(SavePic, "./pic/ping-unknown.png", SavePic, 1510, 210 + 100 * i)
+                else:
+                    AlphaPicOverlay(SavePic, "./pic/ping-best.png", SavePic, 1510, 210 + 100 * i)
                 if i >= 7:
                     break
         return SavePic
