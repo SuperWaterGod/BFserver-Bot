@@ -9,7 +9,6 @@ import random
 from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 from XunProxy import aioRequest, PicDownload
-from picture import AlphaPicOverlay
 
 cc = opencc.OpenCC('t2s')
 
@@ -52,11 +51,8 @@ async def PicServerList(name):
         draw = ImageDraw.Draw(im)
         draw.text((300, 40), "伺服器列表", font=titleFont)
         draw.text((300, 120), "搜索内容：" + name.replace("%20", " "), font=searchFont)
-        im.save(SavePic)
         data = json.loads(html)
         if len(data['servers']) == 0:
-            im = Image.open(SavePic)
-            draw = ImageDraw.Draw(im)
             draw.text((800, 500), "找不到伺服器", font=searchFont)
             draw.text((795, 545), "變更篩選條件並重試", font=nameFont)
             im.save(SavePic)
@@ -68,22 +64,23 @@ async def PicServerList(name):
                 detail = str(data['servers'][i]['mode']) + " - " + str(data['servers'][i]['currentMap']) + " - 60HZ"
 
                 PicUrl = await PicDownload(pic)
-                im = Image.open(SavePic)
                 im1 = Image.open(PicUrl)
                 im1.thumbnail((144, 84))
                 im.paste(im1, (250, 200 + 100 * i))
 
-                draw = ImageDraw.Draw(im)
                 draw.text((400, 210 + 100 * i), title, font=nameFont)
                 draw.text((1400, 210 + 100 * i), queue, font=nameFont)
                 draw.text((400, 250 + 100 * i), detail, font=detailFont)
-                im.save(SavePic)
+
                 if PicUrl == "./pic/play.jpg":
-                    AlphaPicOverlay(SavePic, "./pic/ping-unknown.png", SavePic, 1510, 210 + 100 * i)
+                    png = Image.open("./pic/ping-unknown.png").convert('RGBA')
+                    im.paste(png, (1510, 210 + 100 * i), png)
                 else:
-                    AlphaPicOverlay(SavePic, "./pic/ping-best.png", SavePic, 1510, 210 + 100 * i)
+                    png = Image.open("./pic/ping-best.png").convert('RGBA')
+                    im.paste(png, (1510, 210 + 100 * i), png)
                 if i >= 7:
                     break
+            im.save(SavePic)
         return SavePic
     else:
         return "查询超时，请稍后再试！"
@@ -129,6 +126,72 @@ async def Weapons(name):
             returnStr = returnStr + "\n"
             return returnStr.replace("\n\n", "")
             pass
+        else:
+            return "查询昵称有误！"
+    else:
+        return "查询超时，请稍后再试！"
+
+
+async def PicWeapons(name):
+    if name is None:
+        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
+    url = "https://api.jobse.space/bf1/weapons/?name=" + name + "&lang=zh-TW"
+    bg = "./pic/weapons" + str(random.randint(1, 8)) + ".jpg"
+    SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
+
+    html = await aioRequest(url)
+    if html is not None:
+        data = json.loads(html)
+        if 'error' not in data:
+            im = Image.open(bg)
+            draw = ImageDraw.Draw(im)
+            nameFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=35)
+            titleFont = ImageFont.truetype(u"./font/Deng.ttf", size=20)
+            detailFont = ImageFont.truetype(u"./font/Deng.ttf", size=16)
+
+            draw.text((50, 30), name, font=nameFont)
+            weaponsData = data['weapons']
+            weaponsList = sorted(weaponsData, key=lambda student: student['kills'], reverse=True)
+
+            for i in range(5):
+                star = int(weaponsList[i]['kills'] / 100)
+                weaponsStar = "★ " + str(star)
+                weaponsName = str(weaponsList[i]['weaponName'])
+                weaponsKills = "击杀数：" + str(weaponsList[i]['kills'])
+                weaponsKpm = "K P M：" + str(weaponsList[i]['killsPerMinute'])
+                weaponsAcc = "精准度：" + str(weaponsList[i]['accuracy'])
+                weaponsHs = "爆头率：" + str(weaponsList[i]['headshots'])
+                pic = str(weaponsList[i]['image'])
+                PicUrl = await PicDownload(pic)
+                w, h = titleFont.getsize(weaponsName)
+
+                draw.text(((562 - w) / 2, 200 + 228 * i), weaponsName, font=titleFont)
+                if star >= 100:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont, fill=(255, 132, 0))
+                    png = Image.open("./pic/medium_orange.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 100 > star >= 60:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                    png = Image.open("./pic/medium_blue.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 60 > star >= 40:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                    png = Image.open("./pic/medium_white.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+                elif star > 0:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                draw.text((160, 230 + 228 * i), weaponsKills, font=detailFont)
+                draw.text((300, 230 + 228 * i), weaponsAcc, font=detailFont)
+                draw.text((160, 250 + 228 * i), weaponsKpm, font=detailFont)
+                draw.text((300, 250 + 228 * i), weaponsHs, font=detailFont)
+
+                png = Image.open(PicUrl).convert('RGBA')
+                im.paste(png, (150, 110 + 228 * i), png)
+            im.save(SavePic, 'JPEG', quality=100)
+            return SavePic
+
         else:
             return "查询昵称有误！"
     else:
@@ -273,9 +336,9 @@ async def BFservers(id, command):
             return await Stats(command.replace("/战绩", "").replace(" ", ""))
     elif command.startswith("/武器"):
         if command.replace("/武器", "") == "":
-            return await Weapons(FindBinding(id))
+            return await PicWeapons(FindBinding(id))
         else:
-            return await Weapons(command.replace("/武器", "").replace(" ", ""))
+            return await PicWeapons(command.replace("/武器", "").replace(" ", ""))
     elif command.startswith("/载具"):
         if command.replace("/载具", "") == "":
             return await Vehicles(FindBinding(id))

@@ -14,6 +14,7 @@ import os
 import re
 import json
 import time
+import jieba
 from pypinyin import lazy_pinyin
 
 from match import AutoReply, AutoVoice
@@ -70,7 +71,7 @@ async def Schedule_Task():
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     MessageStr = message.asDisplay()
     if group.id in WhiteGroup:
-        if MessageStr.startswith("/武器") or MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
+        if MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
@@ -86,7 +87,7 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]))
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
-        elif MessageStr.startswith("/服务器"):
+        elif MessageStr.startswith("/服务器") or MessageStr.startswith("/武器"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
@@ -108,12 +109,30 @@ async def message_log(message: MessageChain, app: GraiaMiraiApplication, group: 
     messageStr = message.asDisplay()
     name = "./log/" + str(group.id) + ".log"
     try:
-        fp = open(name, 'a+')
+        fp = open(name, 'a+', encoding='utf-8')
         fp.write(messageStr)
     except:
-        fp = open(name, 'w')
+        fp = open(name, 'w', encoding='utf-8')
         fp.write(messageStr)
     fp.close()
+    if member.id == Admin:
+        if messageStr == "/词云":
+            txt = open(name, "r", encoding='utf-8').read()
+            words = jieba.lcut(txt)  # 使用精确模式对文本进行分词
+            counts = {}  # 通过键值对的形式存储词语及其出现的次数
+
+            for word in words:
+                if len(word) == 1:  # 单个词语不计算在内
+                    continue
+                else:
+                    counts[word] = counts.get(word, 0) + 1  # 遍历所有词语，每出现一次其对应的值加 1
+
+            items = list(counts.items())
+            items.sort(key=lambda x: x[1], reverse=True)  # 根据词语出现的次数进行从大到小排序
+
+            for i in range(6):
+                word, count = items[i]
+                print("{0:<5}{1:>5}".format(word, count))
 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
