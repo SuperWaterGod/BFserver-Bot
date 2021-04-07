@@ -25,7 +25,7 @@ from video import NewVideo
 
 from config import LoliconKey, Admin, Bot
 
-WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214]
+WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214, 1153476318]
 WhiteId = [1341283988]
 BlackId = []
 BanSetu = [1136543076, 781963214]
@@ -59,7 +59,7 @@ async def Schedule_Task():
     elif UseTime == "23:00":
         for i in range(len(ScheduleGroup)):
             await app.sendGroupMessage(ScheduleGroup[i], MessageChain.create([Image.fromLocalFile("./Menhera/122.png"), Plain("米娜桑，晚安(￣o￣) . z Z")]))
-    VideoDetail = await NewVideo(BFUid)
+    VideoDetail = None
     if VideoDetail is not None:
         VideoMessage = "你关注的UP主:" + VideoDetail[2] + "发布了新的视频:\n" + VideoDetail[0] + "\n视频链接：https://www.bilibili.com/video/" + VideoDetail[1] + "\n快去给他一个三连吧o(*////▽////*)q"
         for i in range(len(ScheduleGroup)):
@@ -71,7 +71,7 @@ async def Schedule_Task():
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     MessageStr = message.asDisplay()
     if group.id in WhiteGroup:
-        if MessageStr.startswith("/载具") or MessageStr.startswith("/最近"):
+        if MessageStr.startswith("/最近"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
@@ -87,7 +87,7 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]))
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]))
-        elif MessageStr.startswith("/服务器") or MessageStr.startswith("/武器"):
+        elif MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
             else:
@@ -130,7 +130,7 @@ async def message_log(message: MessageChain, app: GraiaMiraiApplication, group: 
             items = list(counts.items())
             items.sort(key=lambda x: x[1], reverse=True)  # 根据词语出现的次数进行从大到小排序
 
-            for i in range(6):
+            for i in range(20):
                 word, count = items[i]
                 print("{0:<5}{1:>5}".format(word, count))
 

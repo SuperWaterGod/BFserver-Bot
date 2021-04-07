@@ -221,6 +221,69 @@ async def Vehicles(name):
         return "查询超时，请稍后再试！"
 
 
+async def PicVehicles(name):
+    if name is None:
+        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
+    url = "https://api.jobse.space/bf1/vehicles/?name=" + name + "&lang=zh-TW"
+    bg = "./pic/vehicles" + str(random.randint(1, 8)) + ".jpg"
+    SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
+
+    html = await aioRequest(url)
+    if html is not None:
+        data = json.loads(html)
+        if 'error' not in data:
+            im = Image.open(bg)
+            draw = ImageDraw.Draw(im)
+            nameFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=35)
+            titleFont = ImageFont.truetype(u"./font/Deng.ttf", size=20)
+            detailFont = ImageFont.truetype(u"./font/Deng.ttf", size=16)
+
+            draw.text((50, 30), name, font=nameFont)
+            vehiclesData = data['vehicles']
+            vehiclesList = sorted(vehiclesData, key=lambda student: student['kills'], reverse=True)
+
+            for i in range(5):
+                star = int(vehiclesList[i]['kills'] / 100)
+                vehiclesStar = "★ " + str(star)
+                vehiclesName = str(vehiclesList[i]['vehicleName'])
+                vehiclesKills = "击杀数：" + str(vehiclesList[i]['kills'])
+                vehiclesKpm = "K P M：" + str(vehiclesList[i]['killsPerMinute'])
+
+                pic = str(vehiclesList[i]['image'])
+                PicUrl = await PicDownload(pic)
+                w, h = titleFont.getsize(vehiclesName)
+
+                draw.text(((562 - w) / 2, 200 + 228 * i), vehiclesName, font=titleFont)
+                if star >= 100:
+                    draw.text((90, 95 + 228 * i), vehiclesStar, font=titleFont, fill=(255, 132, 0))
+                    png = Image.open("./pic/medium_orange.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 100 > star >= 60:
+                    draw.text((90, 95 + 228 * i), vehiclesStar, font=titleFont)
+                    png = Image.open("./pic/medium_blue.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 60 > star >= 40:
+                    draw.text((90, 95 + 228 * i), vehiclesStar, font=titleFont)
+                    png = Image.open("./pic/medium_white.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+                elif star > 0:
+                    draw.text((90, 95 + 228 * i), vehiclesStar, font=titleFont)
+                draw.text((160, 230 + 228 * i), vehiclesKills, font=detailFont)
+                draw.text((160, 250 + 228 * i), vehiclesKpm, font=detailFont)
+
+                png = Image.open(PicUrl).convert('RGBA')
+                im.paste(png, (150, 110 + 228 * i), png)
+            im.save(SavePic, 'JPEG', quality=100)
+            return SavePic
+
+        else:
+            return "查询昵称有误！"
+    else:
+        return "查询超时，请稍后再试！"
+
+
 async def Recent(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
@@ -331,7 +394,7 @@ async def BFservers(id, command):
         return await PicServerList(command.replace("/服务器 ", "").replace("/服务器", "").replace(" ", "%20"))
     elif command.startswith("/战绩"):
         if command.replace("/战绩", "") == "":
-            return await Stats(FindBinding(id))
+            return await TempStats(FindBinding(id))
         else:
             return await Stats(command.replace("/战绩", "").replace(" ", ""))
     elif command.startswith("/武器"):
@@ -341,9 +404,9 @@ async def BFservers(id, command):
             return await PicWeapons(command.replace("/武器", "").replace(" ", ""))
     elif command.startswith("/载具"):
         if command.replace("/载具", "") == "":
-            return await Vehicles(FindBinding(id))
+            return await PicVehicles(FindBinding(id))
         else:
-            return await Vehicles(command.replace("/载具", "").replace(" ", ""))
+            return await PicVehicles(command.replace("/载具", "").replace(" ", ""))
     elif command.startswith("/最近"):
         if command.replace("/最近", "") == "":
             return await Recent(FindBinding(id))
