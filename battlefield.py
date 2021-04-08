@@ -16,7 +16,7 @@ cc = opencc.OpenCC('t2s')
 async def ServerList(name):
     if name == "":
         name = "[LSP]"
-    url = "https://api.jobse.space/bf1/servers/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/servers/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -37,7 +37,7 @@ async def ServerList(name):
 async def PicServerList(name):
     if name == "":
         name = "[LSP]"
-    url = "https://api.jobse.space/bf1/servers/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/servers/?name=" + name + "&lang=zh-TW"
     bg = "./pic/server_bg" + str(random.randint(1, 4)) + ".jpg"
     SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
 
@@ -89,7 +89,7 @@ async def PicServerList(name):
 async def Stats(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.jobse.space/bf1/stats/?name=" + name
+    url = "https://api.gametools.network/bf1/stats/?name=" + name
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -109,7 +109,7 @@ async def Stats(name):
 async def Weapons(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.jobse.space/bf1/weapons/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/weapons/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -135,7 +135,7 @@ async def Weapons(name):
 async def PicWeapons(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.jobse.space/bf1/weapons/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/weapons/?name=" + name + "&lang=zh-TW"
     bg = "./pic/weapons" + str(random.randint(1, 8)) + ".jpg"
     SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
 
@@ -201,7 +201,7 @@ async def PicWeapons(name):
 async def Vehicles(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.jobse.space/bf1/vehicles/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/vehicles/?name=" + name + "&lang=zh-TW"
     html = await aioRequest(url)
     if html is not None:
         data = json.loads(cc.convert(html))
@@ -224,7 +224,7 @@ async def Vehicles(name):
 async def PicVehicles(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://api.jobse.space/bf1/vehicles/?name=" + name + "&lang=zh-TW"
+    url = "https://api.gametools.network/bf1/vehicles/?name=" + name + "&lang=zh-TW"
     bg = "./pic/vehicles" + str(random.randint(1, 8)) + ".jpg"
     SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
 
@@ -396,7 +396,7 @@ async def BFservers(id, command):
         if command.replace("/战绩", "") == "":
             return await TempStats(FindBinding(id))
         else:
-            return await Stats(command.replace("/战绩", "").replace(" ", ""))
+            return await TempStats(command.replace("/战绩", "").replace(" ", ""))
     elif command.startswith("/武器"):
         if command.replace("/武器", "") == "":
             return await PicWeapons(FindBinding(id))
