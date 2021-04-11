@@ -86,22 +86,66 @@ async def PicServerList(name):
         return "查询超时，请稍后再试！"
 
 
+async def TempStats(name):
+    if name is None:
+        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
+    url = "https://battlefieldtracker.com/bf1/profile/pc/" + name
+    html = await aioRequest(url)
+    if html is not None:
+        bs = BeautifulSoup(html, "html.parser")
+        try:
+            data = bs.find(name="div", attrs={"class": "card player-general"})
+            rank = data.find_all(name="span", attrs={"class": "title"})
+            content = []
+            content.append(''.join(re.findall('[0-9]', rank[0].string)))
+            details = data.find_all(name="div", attrs={"class": "value"})
+            content.append(details[1].string)
+            content.append(details[2].string)
+            content.append(details[4].string)
+            stats = bs.find_all(name="div", attrs={"class": "stats-large"})
+            performance = stats[0].find_all(name="div", attrs={"class": "value"})
+            content.append(''.join(re.findall('[0-9.,%]', performance[2].string)))
+            content.append(''.join(re.findall('[0-9.,%]', performance[6].string)))
+            content.append(''.join(re.findall('[0-9.,%]', performance[7].string)))
+            general = stats[1].find_all(name="div", attrs={"class": "value"})
+            content.append(''.join(re.findall('[0-9.,%]', general[5].string)))
+            content.append(''.join(re.findall('[0-9.,%]', general[6].string)))
+            returnStr = "昵称:" + name + "\n等级:" + content[0] + "\nKD:" + content[1] + "\n胜率:" + content[2] + "\n游戏时间:" + content[3] + "\nSPM:" + content[4] + \
+                        "\n场均击杀:" + content[5] + "\nKPM:" + content[6] + "\n技巧值:" + content[7] + "\n精准度:" + content[8]
+        except:
+            return "查询昵称有误！"
+        return returnStr
+    else:
+        return "查询超时，请稍后再试！"
+
+
 async def Stats(name):
     if name is None:
         return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
     url = "https://api.gametools.network/bf1/stats/?name=" + name
     html = await aioRequest(url)
     if html is not None:
-        data = json.loads(cc.convert(html))
-        if 'error' not in data:
-            returnStr = str("头像:" + str(data['avatar'])) + "\n" + str("昵称:" + str(data['userName'])) + "\n" + str(
-                "等级:" + str(data['Rank'])) + "\n" + str("技巧值:" + str(data['Skill'])) + "\n" + str(
-                "SPM:" + str(data['SPM'])) + "\n" + str("KPM:" + str(data['KPM'])) + "\n" + str(
-                "胜率:" + str(data['Win'])) + "\n" + str("精准度:" + str(data['Accuracy'])) + "\n" + str(
-                "爆头率:" + str(data['Headshots'])) + "\n" + str("KD:" + str(data['K/D']))
-            return returnStr
-        else:
-            return "查询昵称有误！"
+        try:
+            data = json.loads(html)
+            if 'error' not in data:
+                returnStr = str("头像:" + str(data['avatar'])) + \
+                            str("\n昵称:" + str(data['userName'])) + \
+                            str("\n等级:" + str(data['Rank'])) + \
+                            str("\nKD:" + str(data['K/D'])) + \
+                            str("\nSPM:" + str(data['SPM'])) + \
+                            str("\nKPM:" + str(data['KPM'])) + \
+                            str("\n胜率:" + str(data['Win'])) + \
+                            str("\n技巧值:" + str(data['Skill'])) + \
+                            str("\n精准度:" + str(data['Accuracy'])) + \
+                            str("\n爆头率:" + str(data['Headshots'])) + \
+                            str("\n总击杀:" + str(data['Kills'])) + \
+                            str("\n游戏局数:" + str(data['roundsPlayed'])) + \
+                            str("\n场均击杀:" + str(format(data['Kills'] / data['roundsPlayed'], '.1f')))
+                return returnStr
+            else:
+                return "查询昵称有误！"
+        except:
+            return await TempStats(name)
     else:
         return "查询超时，请稍后再试！"
 
@@ -292,57 +336,25 @@ async def Recent(name):
     if html is not None:
         bs = BeautifulSoup(html, "html.parser")
         try:
-            index = bs.find(name="div", attrs={"class": "card-body player-sessions"}).find_all(name="div", attrs={
-                "class": "sessions"})  # 判断目录
+            index = bs.find(name="div", attrs={"class": "card-body player-sessions"}).find_all(name="div", attrs={"class": "sessions"})  # 判断目录
             times = 1
             returnStr = ""
             for i in range(len(index)):
-                data = index[i].find(name="div", attrs={"class": "session-stats"}).find_all(name="div",
-                                                                                            attrs={"style": "",
-                                                                                                   "class": ""})
-                returnStr = returnStr + "更新日期:" + index[i].find('span')['data-livestamp'][0:10] + "\n" + "SPM:" + data[
-                    0].string + "\n" + "KD:" + data[1].string + "\n" + "KPM:" + data[2].string + "\n" + "游戏时间:" + data[
-                                5].string + "\n" + "===================" + "\n"
+                data = index[i].find(name="div", attrs={"class": "session-stats"}).find_all(name="div", attrs={"style": "", "class": ""})
+                returnStr = returnStr + \
+                            "更新日期:" + index[i].find('span')['data-livestamp'][0:10] + \
+                            "\nSPM:" + data[0].string + \
+                            "\nKD:" + data[1].string + \
+                            "\nKPM:" + data[2].string + \
+                            "\n游戏时间:" + data[5].string + \
+                            "\n===================" + "\n"
                 times = times + 1
                 if times > 3:
                     break
         except:
-            return "查询昵称有误！"
+            return "查询昵称有误或未收录最近战绩！"
         returnStr = returnStr + "\n"
         return returnStr.replace("\n\n", "")
-    else:
-        return "查询超时，请稍后再试！"
-
-
-async def TempStats(name):
-    if name is None:
-        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
-    url = "https://battlefieldtracker.com/bf1/profile/pc/" + name
-    html = await aioRequest(url)
-    if html is not None:
-        bs = BeautifulSoup(html, "html.parser")
-        try:
-            data = bs.find(name="div", attrs={"class": "card player-general"})
-            rank = data.find_all(name="span", attrs={"class": "title"})
-            content = []
-            content.append(''.join(re.findall('[0-9]', rank[0].string)))
-            details = data.find_all(name="div", attrs={"class": "value"})
-            content.append(details[1].string)
-            content.append(details[2].string)
-            content.append(details[4].string)
-            stats = bs.find_all(name="div", attrs={"class": "stats-large"})
-            performance = stats[0].find_all(name="div", attrs={"class": "value"})
-            content.append(''.join(re.findall('[0-9.,%]', performance[2].string)))
-            content.append(''.join(re.findall('[0-9.,%]', performance[6].string)))
-            content.append(''.join(re.findall('[0-9.,%]', performance[7].string)))
-            general = stats[1].find_all(name="div", attrs={"class": "value"})
-            content.append(''.join(re.findall('[0-9.,%]', general[5].string)))
-            content.append(''.join(re.findall('[0-9.,%]', general[6].string)))
-            returnStr = "昵称:" + name + "\n等级:" + content[0] + "\nKD:" + content[1] + "\n胜率:" + content[2] + "\n游戏时间:" + content[3] + "\nSPM:" + content[4] + "\n场均击杀:" + content[
-                5] + "\nKPM:" + content[6] + "\n技巧值:" + content[7] + "\n精准度:" + content[8]
-        except:
-            return "查询昵称有误！"
-        return returnStr
     else:
         return "查询超时，请稍后再试！"
 
@@ -394,9 +406,9 @@ async def BFservers(id, command):
         return await PicServerList(command.replace("/服务器 ", "").replace("/服务器", "").replace(" ", "%20"))
     elif command.startswith("/战绩"):
         if command.replace("/战绩", "") == "":
-            return await TempStats(FindBinding(id))
+            return await Stats(FindBinding(id))
         else:
-            return await TempStats(command.replace("/战绩", "").replace(" ", ""))
+            return await Stats(command.replace("/战绩", "").replace(" ", ""))
     elif command.startswith("/武器"):
         if command.replace("/武器", "") == "":
             return await PicWeapons(FindBinding(id))
