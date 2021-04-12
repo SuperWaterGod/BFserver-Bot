@@ -23,13 +23,23 @@ from Botstatus import Botstatus
 from XunProxy import aioRequest, PicDownload
 from video import NewVideo
 
-from config import LoliconKey, Admin, Bot, AdminGroup
+from config import LoliconKey, SearchSetting
+
+settings = json.load(open("./Settings.json"))
+Admin = settings["Admin"]
+Bot = settings["Bot"]
+ScheduleGroup = []
+TestGroup = []
+BlackId = []
+for i in range(len(settings["Group"])):
+    if settings["Group"][i]["function"]["Schedule"]:
+        ScheduleGroup.append(settings["Group"][i]["id"])
+    if settings["Group"][i]["function"]["test"]:
+        TestGroup.append(settings["Group"][i]["id"])
+print("配置文件载入成功！")
 
 WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214, 1153476318]
-WhiteId = [1341283988]
-BlackId = []
 BanSetu = [1136543076, 781963214]
-ScheduleGroup = [781963214, 306800820, 1136543076]
 BFUid = [18706000, 287122113, 526559715]
 
 loop = asyncio.get_event_loop()
@@ -69,70 +79,73 @@ async def Schedule_Task():
 
 @bcc.receiver("GroupMessage")
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    MessageStr = message.asDisplay()
-    if group.id in WhiteGroup:
-        if MessageStr.startswith("/最近"):
+    if SearchSetting(group.id)["function"]["battlefield"]:
+        MessageStr = message.asDisplay()
+        if MessageStr.startswith("/最近") or MessageStr.startswith("/战绩") or MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具"):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]), quote=message[Source][0])
             else:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]), quote=message[Source][0])
-        elif MessageStr.startswith("/战绩"):
-            if member.id in BlackId:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]), quote=message[Source][0])
-            else:
-                MessageGet = await BFservers(member.id, MessageStr)
-                if MessageGet.startswith("头像"):
-                    avatar = re.findall('头像:(.*)', MessageGet)[0]
-                    MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]), quote=message[Source][0])
-                else:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
-        elif MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具"):
-            if member.id in BlackId:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]), quote=message[Source][0])
-            else:
-                MessageGet = await BFservers(member.id, MessageStr)
-                if MessageGet.startswith("./"):
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile(MessageGet)]), quote=message[Source][0])
-                    await asyncio.sleep(30)
-                    os.remove(MessageGet)
-                else:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
-        elif MessageStr.startswith("/帮助"):
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]), quote=message[Source][0])
-        elif MessageStr.startswith("/绑定"):
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain(Binding(member.id, MessageStr.replace("/绑定", "").replace(" ", "")))]), quote=message[Source][0])
+                if MessageStr.startswith("/最近"):
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]), quote=message[Source][0])
+                elif MessageStr.startswith("/战绩"):
+                    MessageGet = await BFservers(member.id, MessageStr)
+                    if MessageGet.startswith("头像"):
+                        avatar = re.findall('头像:(.*)', MessageGet)[0]
+                        MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
+                        try:
+                            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]), quote=message[Source][0])
+                        except:
+                            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
+                    else:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
+                elif MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具"):
+                    if MessageStr == "/服务器":
+                        MessageStr += SearchSetting(group.id)["name"]
+                    MessageGet = await BFservers(member.id, MessageStr)
+                    if MessageGet.startswith("./"):
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile(MessageGet)]), quote=message[Source][0])
+                        await asyncio.sleep(30)
+                        os.remove(MessageGet)
+                    else:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
+                elif MessageStr.startswith("/帮助"):
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + await BFservers(member.id, MessageStr))]), quote=message[Source][0])
+                elif MessageStr.startswith("/绑定"):
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain(Binding(member.id, MessageStr.replace("/绑定", "").replace(" ", "")))]),
+                                               quote=message[Source][0])
 
 
 @bcc.receiver("GroupMessage")  # 收集群消息
 async def message_log(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    messageStr = message.asDisplay()
-    name = "./log/" + str(group.id) + ".log"
-    try:
-        fp = open(name, 'a+', encoding='utf-8')
-        fp.write(messageStr)
-    except:
-        fp = open(name, 'w', encoding='utf-8')
-        fp.write(messageStr)
-    fp.close()
-    if member.id == Admin:
-        if messageStr == "/词云":
-            txt = open(name, "r", encoding='utf-8').read()
-            words = jieba.lcut(txt)  # 使用精确模式对文本进行分词
-            counts = {}  # 通过键值对的形式存储词语及其出现的次数
+    if SearchSetting(group.id)["function"]["Record"]:
+        if member.id not in SearchSetting(group.id)["blacklist"]:
+            messageStr = message.asDisplay()
+            name = "./log/" + str(group.id) + ".log"
+            try:
+                fp = open(name, 'a+', encoding='utf-8')
+                fp.write(messageStr)
+            except:
+                fp = open(name, 'w', encoding='utf-8')
+                fp.write(messageStr)
+            fp.close()
+            if member.id == Admin:
+                if messageStr == "/词云":
+                    txt = open(name, "r", encoding='utf-8').read()
+                    words = jieba.lcut(txt)  # 使用精确模式对文本进行分词
+                    counts = {}  # 通过键值对的形式存储词语及其出现的次数
 
-            for word in words:
-                if len(word) == 1:  # 单个词语不计算在内
-                    continue
-                else:
-                    counts[word] = counts.get(word, 0) + 1  # 遍历所有词语，每出现一次其对应的值加 1
+                    for word in words:
+                        if len(word) == 1:  # 单个词语不计算在内
+                            continue
+                        else:
+                            counts[word] = counts.get(word, 0) + 1  # 遍历所有词语，每出现一次其对应的值加 1
 
-            items = list(counts.items())
-            items.sort(key=lambda x: x[1], reverse=True)  # 根据词语出现的次数进行从大到小排序
+                    items = list(counts.items())
+                    items.sort(key=lambda x: x[1], reverse=True)  # 根据词语出现的次数进行从大到小排序
 
-            for i in range(20):
-                word, count = items[i]
-                print("{0:<5}{1:>5}".format(word, count))
+                    for i in range(20):
+                        word, count = items[i]
+                        print("{0:<5}{1:>5}".format(word, count))
 
 
 @bcc.receiver("GroupMessage")  # 自动发送色图
@@ -144,7 +157,7 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
         if member.id in BlackId:
             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
         else:
-            if group.id not in BanSetu:
+            if SearchSetting(group.id)["function"]["setu"]:
                 try:
                     url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
                     data = json.loads(await aioRequest(url))
@@ -197,13 +210,14 @@ async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplicati
             AtLsit.append(int(re.findall('target=(.*) ', str(message.get(At)[i]))[0]))
         for i in range(len(AtLsit)):
             if AtLsit[i] == Bot:
-                await app.sendGroupMessage(group, MessageChain.create([Plain("@我没有用哦~")]), quote=message[Source][0])
                 pinyinStr = ""
                 for i in range(len(lazy_pinyin(message.asDisplay()))):
                     pinyinStr += lazy_pinyin(message.asDisplay())[i]
                 if pinyinStr.find("shabi") >= 0:
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("不理你了！")]), quote=message[Source][0])
                     BlackId.append(member.id)
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([Plain("@我没有用哦~")]), quote=message[Source][0])
 
 
 @bcc.receiver("MemberJoinEvent")  # 新人加入群
@@ -251,9 +265,8 @@ async def Admin_Friend_Test(message: MessageChain, app: GraiaMiraiApplication, f
 
 @bcc.receiver("GroupMessage")  # 群TEST
 async def Admin_Group_Test(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    if member.id == Admin and group.id == AdminGroup:
+    if group.id in TestGroup:
         await app.sendGroupMessage(group, MessageChain.create([Plain("test")]), quote=message[Source][0])
-        pass
 
 
 app.launch_blocking()
