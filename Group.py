@@ -5,6 +5,9 @@ from graia.application.message.chain import MessageChain
 from graia.application.friend import Friend
 from graia.application.message.elements.internal import At, Plain, Image, Voice, Quote, Source
 from graia.application.session import Session
+from graia.broadcast.interrupt import InterruptControl
+from graia.broadcast.interrupt.waiter import Waiter
+from graia.application.event.messages import GroupMessage
 from graia.application.group import Group, Member, Optional
 from graia.scheduler import timers
 import graia.scheduler as scheduler
@@ -30,7 +33,7 @@ Admin = settings["Admin"]
 Bot = settings["Bot"]
 ScheduleGroup = []
 TestGroup = []
-BlackId = []
+BlackId = set()
 for i in range(len(settings["Group"])):
     if settings["Group"][i]["function"]["Schedule"]:
         ScheduleGroup.append(settings["Group"][i]["id"])
@@ -46,6 +49,7 @@ loop = asyncio.get_event_loop()
 
 bcc = Broadcast(loop=loop, use_dispatcher_statistics=True, use_reference_optimization=True)
 sche = scheduler.GraiaScheduler(loop=loop, broadcast=bcc)
+inc = InterruptControl(bcc)
 app = GraiaMiraiApplication(
     broadcast=bcc,
     connect_info=Session(
@@ -81,7 +85,8 @@ async def Schedule_Task():
 async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     if SearchSetting(group.id)["function"]["battlefield"]:
         MessageStr = message.asDisplay()
-        if MessageStr.startswith("/最近") or MessageStr.startswith("/战绩") or MessageStr.startswith("/服务器") or MessageStr.startswith("/武器") or MessageStr.startswith("/载具"):
+        if any([MessageStr.startswith("/最近"), MessageStr.startswith("/战绩"), MessageStr.startswith("/服务器"), MessageStr.startswith("/武器"), MessageStr.startswith("/载具"),
+                MessageStr.startswith("/帮助"), MessageStr.startswith("/绑定")]):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]), quote=message[Source][0])
             else:
@@ -93,7 +98,8 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                         avatar = re.findall('头像:(.*)', MessageGet)[0]
                         MessageStr = re.findall('昵称:[\s\S]*', MessageGet)[0]
                         try:
-                            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]), quote=message[Source][0])
+                            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(avatar), Plain("\n" + MessageStr)]),
+                                                       quote=message[Source][0])
                         except:
                             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
                     else:
@@ -184,13 +190,14 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
 
 @bcc.receiver("GroupMessage")  # 自动回复群消息及表情
 async def AutoReply_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    MessageGet = AutoReply(message.asDisplay())
-    if MessageGet.startswith("./Menhera/"):
-        await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(MessageGet)]))
-    elif MessageGet == "":
-        pass
-    else:
-        await app.sendGroupMessage(group, MessageChain.create([Plain(MessageGet)]))
+    if member.id not in BlackId:
+        MessageGet = AutoReply(message.asDisplay())
+        if MessageGet.startswith("./Menhera/"):
+            await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(MessageGet)]))
+        elif MessageGet == "":
+            pass
+        else:
+            await app.sendGroupMessage(group, MessageChain.create([Plain(MessageGet)]))
 
 
 @bcc.receiver("GroupMessage")  # 自动回复语音
@@ -202,20 +209,41 @@ async def AutoVoice_Group_listener(message: MessageChain, app: GraiaMiraiApplica
         pass
 
 
-@bcc.receiver("GroupMessage")  # 加入黑名单
+@bcc.receiver("GroupMessage")  # 加入/移除黑名单
 async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     if message.has(At):
         AtLsit = []
         for i in range(len(message.get(At))):
             AtLsit.append(int(re.findall('target=(.*) ', str(message.get(At)[i]))[0]))
+        MessageGet = message.asDisplay()
         for i in range(len(AtLsit)):
             if AtLsit[i] == Bot:
                 pinyinStr = ""
-                for i in range(len(lazy_pinyin(message.asDisplay()))):
-                    pinyinStr += lazy_pinyin(message.asDisplay())[i]
-                if pinyinStr.find("shabi") >= 0:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("不理你了！")]), quote=message[Source][0])
-                    BlackId.append(member.id)
+                for i in range(len(lazy_pinyin(MessageGet))):
+                    pinyinStr += lazy_pinyin(MessageGet)[i]
+                if pinyinStr.find("shabi") >= 0 or pinyinStr.find("hanhan") >= 0 or pinyinStr.find("bendan") >= 0:
+                    if pinyinStr.find("woshishabi") < 0:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("不理你了！")]), quote=message[Source][0])
+                        BlackId.add(member.id)
+                elif MessageGet.find("对不起") >= 0 or MessageGet.find("我错了") >= 0 or MessageGet.find("抱歉") >= 0:
+                    if member.id in BlackId:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile("./Menhera/37.jpg"), Plain("想让我原谅你？请问谁是傻逼？")]))
+
+                        @Waiter.create_using_function([GroupMessage])
+                        async def Remove_Blacklist(event: GroupMessage, waiter_group: Group, waiter_member: Member, waiter_message: MessageChain):
+                            if waiter_group.id == group.id and waiter_member.id == member.id and waiter_message.asDisplay().find("我是傻逼") >= 0:
+                                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile("./Menhera/110.jpg"), Plain("哼，这还差不多┑(￣Д ￣)┍")]))
+                                BlackId.remove(member.id)
+                                await app.sendGroupMessage(group, MessageChain.create([Plain("这次就算了，下不为例哦╰(￣ω￣ｏ)")]))
+                                return event
+
+                        try:
+                            await asyncio.wait_for(inc.wait(Remove_Blacklist), timeout=30)
+                        except asyncio.TimeoutError:
+                            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile("./Menhera/63.jpg"), Plain("\n不承认自己是傻逼就算了(* ￣︿￣)")]))
+                        pass
+                    else:
+                        await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile("./Menhera/139.png")]), quote=message[Source][0])
                 else:
                     await app.sendGroupMessage(group, MessageChain.create([Plain("@我没有用哦~")]), quote=message[Source][0])
 
@@ -266,7 +294,30 @@ async def Admin_Friend_Test(message: MessageChain, app: GraiaMiraiApplication, f
 @bcc.receiver("GroupMessage")  # 群TEST
 async def Admin_Group_Test(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
     if group.id in TestGroup:
-        await app.sendGroupMessage(group, MessageChain.create([Plain("test")]), quote=message[Source][0])
+        if message.asDisplay().startswith("/test_need_confirm"):
+            await app.sendGroupMessage(group, MessageChain.create([
+                At(member.id), Plain("发送 /confirm 以继续运行")
+            ]))
+
+            @Waiter.create_using_function([GroupMessage])
+            async def waiter(
+                    event: GroupMessage, waiter_group: Group,
+                    waiter_member: Member, waiter_message: MessageChain
+            ):
+                if all([
+                    waiter_group.id == group.id,
+                    waiter_member.id == member.id,
+                    waiter_message.asDisplay().startswith("/confirm")
+                ]):
+                    await app.sendGroupMessage(group, MessageChain.create([Plain("开始执行.")]))
+                    return event
+
+            # await asyncio.wait_for(waiter, 60)
+            try:
+                await asyncio.wait_for(inc.wait(waiter), timeout=10)
+            except asyncio.TimeoutError:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("命令超时")]))
+            await app.sendGroupMessage(group, MessageChain.create([Plain("执行完毕.")]))
 
 
 app.launch_blocking()
