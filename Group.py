@@ -38,6 +38,7 @@ Bot = settings["Bot"]
 ScheduleGroup = []
 TestGroup = []
 BlackId = set()
+StartTime = time.time()
 for i in settings["Group"]:
     if i["function"]["Schedule"]:
         ScheduleGroup.append(i["id"])
@@ -294,13 +295,6 @@ async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplic
         await app.sendFriendMessage(friend, MessageChain.create([Plain(MessageGet)]))
 
 
-@bcc.receiver("FriendMessage")  # 机器人状态
-async def Bot_Friend_Status(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
-    if friend.id == Admin:
-        if message.asDisplay().startswith("/状态"):
-            await app.sendFriendMessage(friend, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%")]))
-
-
 @bcc.receiver("FriendMessage")  # 好友TEST
 async def Admin_Friend_Test(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
     if friend.id == Admin:
@@ -383,11 +377,16 @@ async def group_settings(message: MessageChain, app: GraiaMiraiApplication, grou
                                 await app.sendGroupMessage(group, MessageChain.create([Plain(f"{commands[1]}功能已关闭")]))
             except:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
-        elif commands[0] == "state":
+        elif commands[0] == "status":
             try:
-                await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%")]))
+                setting = json.load(open("./Settings.json", encoding='utf-8'))
+                counts = len(setting["Group"])
+                EndTime = int((time.time()-StartTime)/60)
+                await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%\n目前已在{counts}个群内服务\nMenhera酱已经运行了{EndTime}分钟")]))
             except:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
+        elif commands[0] in ["最近", "服务器", "武器", "载具", "战绩", "绑定", "帮助"]:
+            pass
         else:
             await app.sendGroupMessage(group, MessageChain.create([Plain("指令错误")]))
 
