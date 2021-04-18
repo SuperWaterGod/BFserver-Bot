@@ -8,9 +8,12 @@ from graia.application.session import Session
 from graia.broadcast.interrupt import InterruptControl
 from graia.broadcast.interrupt.waiter import Waiter
 from graia.application.event.messages import GroupMessage
+from graia.application.event.mirai import BotInvitedJoinGroupRequestEvent
 from graia.application.group import Group, Member, Optional
 from graia.scheduler import timers
 import graia.scheduler as scheduler
+from graia.application.message.parser.kanata import Kanata
+from graia.application.message.parser.signature import FullMatch, OptionalParam, RequireParam
 
 import asyncio
 import os
@@ -25,24 +28,23 @@ from battlefield import BFservers, Binding
 from Botstatus import Botstatus
 from XunProxy import aioRequest, PicDownload
 from video import NewVideo
+from Botstatus import Botstatus
 
 from config import LoliconKey, SearchSetting
 
-settings = json.load(open("./Settings.json"))
+settings = json.load(open("./Settings.json", encoding='utf-8'))
 Admin = settings["Admin"]
 Bot = settings["Bot"]
 ScheduleGroup = []
 TestGroup = []
 BlackId = set()
-for i in range(len(settings["Group"])):
-    if settings["Group"][i]["function"]["Schedule"]:
-        ScheduleGroup.append(settings["Group"][i]["id"])
-    if settings["Group"][i]["function"]["test"]:
-        TestGroup.append(settings["Group"][i]["id"])
+for i in settings["Group"]:
+    if i["function"]["Schedule"]:
+        ScheduleGroup.append(i["id"])
+    if i["function"]["test"]:
+        TestGroup.append(i["id"])
 print("配置文件载入成功！")
 
-WhiteGroup = [454375504, 863715876, 306800820, 1136543076, 781963214, 1153476318]
-BanSetu = [1136543076, 781963214]
 BFUid = [18706000, 287122113, 526559715]
 
 loop = asyncio.get_event_loop()
@@ -159,54 +161,52 @@ async def pixiv_Group_listener(message: MessageChain, app: GraiaMiraiApplication
     pinyinStr = ""
     for i in range(len(lazy_pinyin(message.asDisplay()))):
         pinyinStr += lazy_pinyin(message.asDisplay())[i]
-    if pinyinStr.find("setu") >= 0:
-        if member.id in BlackId:
-            await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
-        else:
-            if SearchSetting(group.id)["function"]["setu"]:
-                try:
-                    url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
-                    data = json.loads(await aioRequest(url))
-                    if data['code'] == 0:
-                        messageId = await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
-                        await asyncio.sleep(60)
-                        await app.revokeMessage(messageId)
-                    elif data['code'] == 429:
-                        url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+    if not pinyinStr.startswith("/"):
+        if pinyinStr.find("setu") >= 0:
+            if member.id in BlackId:
+                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]))
+            else:
+                if SearchSetting(group.id)["function"]["setu"]:
+                    try:
+                        url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[0]  # 1号api
                         data = json.loads(await aioRequest(url))
                         if data['code'] == 0:
                             messageId = await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
                             await asyncio.sleep(60)
                             await app.revokeMessage(messageId)
+                        elif data['code'] == 429:
+                            url = "https://api.lolicon.app/setu/?apikey=" + LoliconKey[1]  # 2号api
+                            data = json.loads(await aioRequest(url))
+                            if data['code'] == 0:
+                                messageId = await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromNetworkAddress(data['data'][0]['url'])]))
+                                await asyncio.sleep(60)
+                                await app.revokeMessage(messageId)
+                            else:
+                                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
                         else:
                             await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-                    else:
-                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("今天发的已经够多了，明天再来吧~")]))
-                except:
-                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
-            else:
-                await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("本群因管理要求已禁止使用色图功能╮(╯▽╰)╭")]))
+                    except:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("本群因管理要求已禁止使用色图功能╮(╯▽╰)╭")]))
 
 
-@bcc.receiver("GroupMessage")  # 自动回复群消息及表情
+@bcc.receiver("GroupMessage")  # 自动回复群消息表情及语音
 async def AutoReply_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    if member.id not in BlackId:
-        MessageGet = AutoReply(message.asDisplay())
-        if MessageGet.startswith("./Menhera/"):
-            await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(MessageGet)]))
-        elif MessageGet == "":
-            pass
-        else:
-            await app.sendGroupMessage(group, MessageChain.create([Plain(MessageGet)]))
-
-
-@bcc.receiver("GroupMessage")  # 自动回复语音
-async def AutoVoice_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
-    MessageGet = AutoVoice(message.asDisplay())
-    if MessageGet.startswith("./voice/"):
-        await app.sendGroupMessage(group, MessageChain.create([Voice().fromLocalFile(MessageGet)]))
-    elif MessageGet == "":
-        pass
+    if SearchSetting(group.id)["function"]["AutoReply"]:
+        if member.id not in BlackId:
+            MessageGet = AutoReply(message.asDisplay())
+            if MessageGet.startswith("./Menhera/"):
+                await app.sendGroupMessage(group, MessageChain.create([Image.fromLocalFile(MessageGet)]))
+            elif MessageGet == "":
+                pass
+            else:
+                await app.sendGroupMessage(group, MessageChain.create([Plain(MessageGet)]))
+            MessageGet = AutoVoice(message.asDisplay())
+            if MessageGet.startswith("./voice/"):
+                await app.sendGroupMessage(group, MessageChain.create([Voice().fromLocalFile(MessageGet)]))
+            elif MessageGet == "":
+                pass
 
 
 @bcc.receiver("GroupMessage")  # 加入/移除黑名单
@@ -215,7 +215,7 @@ async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplicati
         AtLsit = []
         for i in range(len(message.get(At))):
             AtLsit.append(int(re.findall('target=(.*) ', str(message.get(At)[i]))[0]))
-        MessageGet = message.asDisplay()
+        MessageGet = message.asDisplay().replace(" ", "")
         for i in range(len(AtLsit)):
             if AtLsit[i] == Bot:
                 pinyinStr = ""
@@ -273,6 +273,16 @@ async def Bot_unmuted(app: GraiaMiraiApplication, group: Group, member: Member):
     await app.sendFriendMessage(Admin, MessageChain.create([Plain("已被" + str(member.name) + "在" + str(group.name) + "解除禁言")]))
 
 
+@bcc.receiver(BotInvitedJoinGroupRequestEvent)  # 机器人邀请进群
+async def Bot_Join_Group(app: GraiaMiraiApplication, event: BotInvitedJoinGroupRequestEvent):
+    if event.supplicant == Admin:
+        await app.sendFriendMessage(Admin, MessageChain.create([Plain("已同意加入" + event.groupName + "（" + str(event.groupId) + "）")]))
+        await event.accept()
+    else:
+        await app.sendFriendMessage(Admin, MessageChain.create([Plain("已拒绝" + str(event.supplicant) + "加入" + event.groupName + "（" + str(event.groupId) + "）")]))
+        await event.reject("请联系作者QQ:1341283988")
+
+
 @bcc.receiver("FriendMessage")  # 自动回复好友消息及表情
 async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
     MessageGet = AutoReply(message.asDisplay())
@@ -282,6 +292,13 @@ async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplic
         pass
     else:
         await app.sendFriendMessage(friend, MessageChain.create([Plain(MessageGet)]))
+
+
+@bcc.receiver("FriendMessage")  # 机器人状态
+async def Bot_Friend_Status(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
+    if friend.id == Admin:
+        if message.asDisplay().startswith("/状态"):
+            await app.sendFriendMessage(friend, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%")]))
 
 
 @bcc.receiver("FriendMessage")  # 好友TEST
@@ -318,6 +335,61 @@ async def Admin_Group_Test(message: MessageChain, app: GraiaMiraiApplication, gr
             except asyncio.TimeoutError:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("命令超时")]))
             await app.sendGroupMessage(group, MessageChain.create([Plain("执行完毕.")]))
+
+
+@bcc.receiver("GroupMessage", dispatchers=[Kanata([FullMatch("/"), RequireParam(name="command")])])  # 配置工具
+async def group_settings(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member, command: MessageChain):
+    if member.id == Admin:
+        commands = command.asDisplay().split(" ")
+        # await app.sendGroupMessage(group, MessageChain.create([Plain("执行命令ing")]))
+        if commands[0] == "reload":
+            settings = json.load(open("./Settings.json", encoding='utf-8'))
+            ScheduleGroup = []
+            TestGroup = []
+            for i in settings["Group"]:
+                if i["function"]["Schedule"]:
+                    ScheduleGroup.append(i["id"])
+                if i["function"]["test"]:
+                    TestGroup.append(i["id"])
+            await app.sendGroupMessage(group, MessageChain.create([Plain("重新载入配置文件成功")]))
+        elif commands[0] == "addgroup":
+            try:
+                setting = json.load(open("./Settings.json", encoding='utf-8'))
+                if SearchSetting(group.id) is None:
+                    NullSetting = [{"name": "", "nickname": group.name, "id": group.id, "blacklist": [2267088317, 1753013648],
+                                    "function": {"AutoReply": True, "battlefield": True, "setu": False, "Schedule": True, "Record": True, "bilibili": False, "test": False}}]
+                    setting["Group"].extend(NullSetting)
+                    json.dump(setting, open("./Settings.json", "w", encoding='utf-8'), ensure_ascii=False, indent=4)
+                    await app.sendGroupMessage(group, MessageChain.create([Plain("已成功配置本群")]))
+                else:
+                    await app.sendGroupMessage(group, MessageChain.create([Plain("本群已有配置文件")]))
+            except:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("诶呀，发生一个未知的错误(ˉ▽ˉ；)...")]))
+        elif commands[0] == "set":
+            try:
+                if commands[1] in ["AutoReply", "battlefield", "setu", "Schedule", "Record", "bilibili", "test"]:
+                    setting = json.load(open("./Settings.json", encoding='utf-8'))
+                    if commands[2] == "true":
+                        for i in setting["Group"]:
+                            if group.id == i["id"]:
+                                i["function"][commands[1]] = True
+                                json.dump(setting, open("./Settings.json", "w", encoding='utf-8'), ensure_ascii=False, indent=4)
+                                await app.sendGroupMessage(group, MessageChain.create([Plain(f"{commands[1]}功能已开启")]))
+                    elif commands[2] == "false":
+                        for i in setting["Group"]:
+                            if group.id == i["id"]:
+                                i["function"][commands[1]] = False
+                                json.dump(setting, open("./Settings.json", "w", encoding='utf-8'), ensure_ascii=False, indent=4)
+                                await app.sendGroupMessage(group, MessageChain.create([Plain(f"{commands[1]}功能已关闭")]))
+            except:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
+        elif commands[0] == "state":
+            try:
+                await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%")]))
+            except:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
+        else:
+            await app.sendGroupMessage(group, MessageChain.create([Plain("指令错误")]))
 
 
 app.launch_blocking()
