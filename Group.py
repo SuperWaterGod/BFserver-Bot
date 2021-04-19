@@ -39,6 +39,8 @@ ScheduleGroup = []
 TestGroup = []
 BlackId = set()
 StartTime = time.time()
+PerNumMessages = 0
+AllNumMessages = 0
 for i in settings["Group"]:
     if i["function"]["Schedule"]:
         ScheduleGroup.append(i["id"])
@@ -81,6 +83,8 @@ async def Schedule_Task():
         VideoMessage = "你关注的UP主:" + VideoDetail[2] + "发布了新的视频:\n" + VideoDetail[0] + "\n视频链接：https://www.bilibili.com/video/" + VideoDetail[1] + "\n快去给他一个三连吧o(*////▽////*)q"
         for i in range(len(ScheduleGroup)):
             await app.sendGroupMessage(ScheduleGroup[i], MessageChain.create([Image.fromNetworkAddress("http://" + VideoDetail[3]), Plain(VideoMessage)]))
+    global PerNumMessages
+    PerNumMessages = 0
     pass
 
 
@@ -126,6 +130,9 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
 
 @bcc.receiver("GroupMessage")  # 收集群消息
 async def message_log(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
+    global PerNumMessages, AllNumMessages
+    PerNumMessages = PerNumMessages + 1
+    AllNumMessages = AllNumMessages + 1
     if SearchSetting(group.id)["function"]["Record"]:
         if member.id not in SearchSetting(group.id)["blacklist"]:
             messageStr = message.asDisplay()
@@ -232,7 +239,7 @@ async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplicati
 
                         @Waiter.create_using_function([GroupMessage])
                         async def Remove_Blacklist(event: GroupMessage, waiter_group: Group, waiter_member: Member, waiter_message: MessageChain):
-                            if waiter_group.id == group.id and waiter_member.id == member.id and waiter_message.asDisplay().find("我是傻逼") >= 0:
+                            if waiter_group.id == group.id and waiter_member.id == member.id and waiter_message.asDisplay() == ("我是傻逼"):
                                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile("./Menhera/110.jpg"), Plain("哼，这还差不多┑(￣Д ￣)┍")]))
                                 BlackId.remove(member.id)
                                 await app.sendGroupMessage(group, MessageChain.create([Plain("这次就算了，下不为例哦╰(￣ω￣ｏ)")]))
@@ -337,6 +344,7 @@ async def group_settings(message: MessageChain, app: GraiaMiraiApplication, grou
         commands = command.asDisplay().split(" ")
         # await app.sendGroupMessage(group, MessageChain.create([Plain("执行命令ing")]))
         if commands[0] == "reload":
+            global settings, ScheduleGroup, TestGroup
             settings = json.load(open("./Settings.json", encoding='utf-8'))
             ScheduleGroup = []
             TestGroup = []
@@ -377,12 +385,24 @@ async def group_settings(message: MessageChain, app: GraiaMiraiApplication, grou
                                 await app.sendGroupMessage(group, MessageChain.create([Plain(f"{commands[1]}功能已关闭")]))
             except:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
+        elif commands[0] == "mod":
+            try:
+                if commands[1] in ["Msg"]:
+                    setting = json.load(open("./Settings.json", encoding='utf-8'))
+                    setting[commands[1]][commands[2]][commands[3]] = commands[4]
+                    json.dump(setting, open("./Settings.json", "w", encoding='utf-8'), ensure_ascii=False, indent=4)
+                    await app.sendGroupMessage(group, MessageChain.create([Plain(f"{commands[3]}信息已修改为{commands[4]}")]))
+            except:
+                await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
         elif commands[0] == "status":
             try:
                 setting = json.load(open("./Settings.json", encoding='utf-8'))
                 counts = len(setting["Group"])
-                EndTime = int((time.time()-StartTime)/60)
-                await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{Botstatus()[0]}%\n内存占用率:{Botstatus()[1]}%\n目前已在{counts}个群内服务\nMenhera酱已经运行了{EndTime}分钟")]))
+                EndTime = int((time.time() - StartTime) / 60)
+                status = await Botstatus()
+                await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{status[0]}%\n内存状态:{status[1]}\n"
+                                                                             f"目前已在{counts}个群内服务\nMenhera酱已经运行了{EndTime}分钟\n"
+                                                                             f"累计收到{AllNumMessages}条消息\n最近一分钟内收到{PerNumMessages}条消息")]))
             except:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
         elif commands[0] in ["最近", "服务器", "武器", "载具", "战绩", "绑定", "帮助"]:

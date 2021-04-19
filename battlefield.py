@@ -352,7 +352,8 @@ async def Recent(name):
                 if times > 3:
                     break
         except:
-            return "查询昵称有误或未收录最近战绩！"
+            settings = json.load(open("./Settings.json", encoding='utf-8'))
+            return settings["Msg"]["Error"]["battletracker"]
         returnStr = returnStr + "\n"
         return returnStr.replace("\n\n", "")
     else:
@@ -425,7 +426,16 @@ async def BFservers(id, command):
         else:
             return await Recent(command.replace("/最近", "").replace(" ", ""))
     elif command.startswith("/帮助"):
-        return "本程序由Super水神编写，暂时仅供LSP、PKEM以及ECO服务器使用。\n目前支持的战地1功能为：\n“/绑定+（空格）+[ID]”、\n“/服务器+（空格）+[名称]”、\n“/战绩+（空格）+[ID]”、\n“/武器+（空格）+[ID]”、\n" \
-               "“/载具+（id）”、\n“/最近+（id）”、\n“/帮助”\n以上命令无需输入+和（）\n由于该程序相当简陋，请温柔对待哦(●'◡'●) "
+        return "本程序由Super水神编写，作者QQ:1341283988。\n" \
+               "目前支持的战地1功能为：\n" \
+               "“/绑定+（空格）+[ID]”\n" \
+               "“/服务器+（空格）+[名称]”\n" \
+               "“/战绩+（空格）+[ID]”\n" \
+               "“/武器+（空格）+[ID]”\n" \
+               "“/载具+（id）”\n" \
+               "“/最近+（id）”\n" \
+               "“/帮助”\n" \
+               "以上命令无需输入+和（）\n" \
+               "由于该程序相当简陋，请温柔对待哦(●'◡'●) "
     else:
         pass
