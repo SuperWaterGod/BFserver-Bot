@@ -52,7 +52,7 @@ BFUid = [18706000, 287122113, 526559715]
 
 loop = asyncio.get_event_loop()
 
-bcc = Broadcast(loop=loop, use_dispatcher_statistics=True, use_reference_optimization=True)
+bcc = Broadcast(loop=loop)
 sche = scheduler.GraiaScheduler(loop=loop, broadcast=bcc)
 inc = InterruptControl(bcc)
 app = GraiaMiraiApplication(
@@ -93,7 +93,10 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
     if SearchSetting(group.id)["function"]["battlefield"]:
         MessageStr = message.asDisplay()
         if any([MessageStr.startswith("/最近"), MessageStr.startswith("/战绩"), MessageStr.startswith("/服务器"), MessageStr.startswith("/武器"), MessageStr.startswith("/载具"),
-                MessageStr.startswith("/帮助"), MessageStr.startswith("/绑定")]):
+                MessageStr.startswith("/帮助"), MessageStr.startswith("/绑定")]) or \
+                any([MessageStr.startswith("/手榴弹"), MessageStr.startswith("/步枪"), MessageStr.startswith("/轻机枪"), MessageStr.startswith("/手枪"),
+                     MessageStr.startswith("/半自动"), MessageStr.startswith("/霰弹枪"), MessageStr.startswith("/精英兵"), MessageStr.startswith("/近战"),
+                     MessageStr.startswith("/冲锋枪"), MessageStr.startswith("/装备")]):
             if member.id in BlackId:
                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("哼(╯▔皿▔)╯，不理你了！")]), quote=message[Source][0])
             else:
@@ -126,6 +129,16 @@ async def battlefield(message: MessageChain, app: GraiaMiraiApplication, group: 
                 elif MessageStr.startswith("/绑定"):
                     await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain(Binding(member.id, MessageStr.replace("/绑定", "").replace(" ", "")))]),
                                                quote=message[Source][0])
+                elif any([MessageStr.startswith("/手榴弹"), MessageStr.startswith("/步枪"), MessageStr.startswith("/轻机枪"), MessageStr.startswith("/手枪"),
+                          MessageStr.startswith("/半自动"), MessageStr.startswith("/霰弹枪"), MessageStr.startswith("/精英兵"), MessageStr.startswith("/近战"),
+                          MessageStr.startswith("/冲锋枪"), MessageStr.startswith("/装备")]):
+                    MessageGet = await BFservers(member.id, MessageStr)
+                    if MessageGet.startswith("./"):
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile(MessageGet)]), quote=message[Source][0])
+                        await asyncio.sleep(30)
+                        os.remove(MessageGet)
+                    else:
+                        await app.sendGroupMessage(group, MessageChain.create([At(member.id), Plain("\n" + MessageGet)]), quote=message[Source][0])
 
 
 @bcc.receiver("GroupMessage")  # 收集群消息
@@ -216,6 +229,12 @@ async def AutoReply_Group_listener(message: MessageChain, app: GraiaMiraiApplica
             elif MessageGet == "":
                 pass
 
+            slogan = re.findall('(.*)\n(.*).jpg', message.asDisplay())  # 在线P图
+            if slogan:
+                upper = slogan[0][0]
+                lower = slogan[0][1]
+                await app.sendGroupMessage(group, MessageChain.create([Image.fromNetworkAddress("https://api.dihe.moe/5000choyen?upper=" + upper + "&lower=" + lower)]))
+
 
 @bcc.receiver("GroupMessage")  # 加入/移除黑名单
 async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplication, group: Group, member: Member):
@@ -239,7 +258,7 @@ async def BlackId_Group_listener(message: MessageChain, app: GraiaMiraiApplicati
 
                         @Waiter.create_using_function([GroupMessage])
                         async def Remove_Blacklist(event: GroupMessage, waiter_group: Group, waiter_member: Member, waiter_message: MessageChain):
-                            if waiter_group.id == group.id and waiter_member.id == member.id and waiter_message.asDisplay() == ("我是傻逼"):
+                            if waiter_group.id == group.id and waiter_member.id == member.id and waiter_message.asDisplay().find("我是傻逼") >= 0:
                                 await app.sendGroupMessage(group, MessageChain.create([At(member.id), Image.fromLocalFile("./Menhera/110.jpg"), Plain("哼，这还差不多┑(￣Д ￣)┍")]))
                                 BlackId.remove(member.id)
                                 await app.sendGroupMessage(group, MessageChain.create([Plain("这次就算了，下不为例哦╰(￣ω￣ｏ)")]))
@@ -305,8 +324,11 @@ async def AutoReply_Friend_listener(message: MessageChain, app: GraiaMiraiApplic
 @bcc.receiver("FriendMessage")  # 好友TEST
 async def Admin_Friend_Test(message: MessageChain, app: GraiaMiraiApplication, friend: Friend):
     if friend.id == Admin:
-        if message.asDisplay().startswith("/test"):
-            await app.sendFriendMessage(friend, MessageChain.create([Plain(await PicDownload(message.asDisplay().replace("/test ")))]))
+        slogan = re.findall('(.*)\n(.*).jpg', message.asDisplay())
+        if slogan:
+            upper = slogan[0][0]
+            lower = slogan[0][1]
+            await app.sendFriendMessage(friend, MessageChain.create([Image.fromNetworkAddress("https://api.dihe.moe/5000choyen?upper=" + upper + "&lower=" + lower)]))
 
 
 @bcc.receiver("GroupMessage")  # 群TEST
@@ -401,14 +423,15 @@ async def group_settings(message: MessageChain, app: GraiaMiraiApplication, grou
                 EndTime = int((time.time() - StartTime) / 60)
                 status = await Botstatus()
                 await app.sendGroupMessage(group, MessageChain.create([Plain(f"CPU占用率:{status[0]}%\n内存状态:{status[1]}\n"
-                                                                             f"目前已在{counts}个群内服务\nMenhera酱已经运行了{EndTime}分钟\n"
+                                                                             f"数据接收：{status[2][0]}|{status[2][1]}\n"
+                                                                             f"数据发送：{status[2][2]}|{status[2][3]}\n"
+                                                                             f"目前已在{counts}个群内服务\n黑名单里共有{len(BlackId)}人\n"
+                                                                             f"Menhera酱已经运行了{EndTime}分钟\n"
                                                                              f"累计收到{AllNumMessages}条消息\n最近一分钟内收到{PerNumMessages}条消息")]))
             except:
                 await app.sendGroupMessage(group, MessageChain.create([Plain("参数错误")]))
-        elif commands[0] in ["最近", "服务器", "武器", "载具", "战绩", "绑定", "帮助"]:
-            pass
         else:
-            await app.sendGroupMessage(group, MessageChain.create([Plain("指令错误")]))
+            pass
 
 
 app.launch_blocking()

@@ -130,17 +130,17 @@ async def Stats(name):
             if 'error' not in data:
                 returnStr = str("头像:" + str(data['avatar'])) + \
                             str("\n昵称:" + str(data['userName'])) + \
-                            str("\n等级:" + str(data['Rank'])) + \
-                            str("\nKD:" + str(data['K/D'])) + \
-                            str("\nSPM:" + str(data['SPM'])) + \
-                            str("\nKPM:" + str(data['KPM'])) + \
-                            str("\n胜率:" + str(data['Win'])) + \
-                            str("\n技巧值:" + str(data['Skill'])) + \
+                            str("\n等级:" + str(data['rank'])) + \
+                            str("\nKD:" + str(data['killDeath'])) + \
+                            str("\nSPM:" + str(data['scorePerMinute'])) + \
+                            str("\nKPM:" + str(data['killsPerMinute'])) + \
+                            str("\n胜率:" + str(data['winPercent'])) + \
+                            str("\n技巧值:" + str(data['skill'])) + \
                             str("\n精准度:" + str(data['Accuracy'])) + \
-                            str("\n爆头率:" + str(data['Headshots'])) + \
-                            str("\n总击杀:" + str(data['Kills'])) + \
+                            str("\n爆头率:" + str(data['headshots'])) + \
+                            str("\n总击杀:" + str(data['kills'])) + \
                             str("\n游戏局数:" + str(data['roundsPlayed'])) + \
-                            str("\n场均击杀:" + str(format(data['Kills'] / data['roundsPlayed'], '.1f')))
+                            str("\n场均击杀:" + str(format(data['kills'] / data['roundsPlayed'], '.1f')))
                 return returnStr
             else:
                 return "查询昵称有误！"
@@ -195,6 +195,92 @@ async def PicWeapons(name):
 
             draw.text((50, 30), name, font=nameFont)
             weaponsData = data['weapons']
+            weaponsList = sorted(weaponsData, key=lambda student: student['kills'], reverse=True)
+
+            for i in range(5):
+                star = int(weaponsList[i]['kills'] / 100)
+                weaponsStar = "★ " + str(star)
+                weaponsName = str(weaponsList[i]['weaponName'])
+                weaponsKills = "击杀数：" + str(weaponsList[i]['kills'])
+                weaponsKpm = "K P M：" + str(weaponsList[i]['killsPerMinute'])
+                weaponsAcc = "精准度：" + str(weaponsList[i]['accuracy'])
+                weaponsHs = "爆头率：" + str(weaponsList[i]['headshots'])
+                pic = str(weaponsList[i]['image'])
+                PicUrl = await PicDownload(pic)
+                w, h = titleFont.getsize(weaponsName)
+
+                draw.text(((562 - w) / 2, 200 + 228 * i), weaponsName, font=titleFont)
+                if star >= 100:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont, fill=(255, 132, 0))
+                    png = Image.open("./pic/medium_orange.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 100 > star >= 60:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                    png = Image.open("./pic/medium_blue.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+
+                elif 60 > star >= 40:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                    png = Image.open("./pic/medium_white.png").convert('RGBA')
+                    im.paste(png, (180, 40 + 228 * i), png)
+                elif star > 0:
+                    draw.text((90, 95 + 228 * i), weaponsStar, font=titleFont)
+                draw.text((160, 230 + 228 * i), weaponsKills, font=detailFont)
+                draw.text((300, 230 + 228 * i), weaponsAcc, font=detailFont)
+                draw.text((160, 250 + 228 * i), weaponsKpm, font=detailFont)
+                draw.text((300, 250 + 228 * i), weaponsHs, font=detailFont)
+
+                png = Image.open(PicUrl).convert('RGBA')
+                im.paste(png, (150, 110 + 228 * i), png)
+            im.save(SavePic, 'JPEG', quality=100)
+            return SavePic
+
+        else:
+            return "查询昵称有误！"
+    else:
+        return "查询超时，请稍后再试！"
+
+
+async def PicWeaponsKinds(id, command):
+    name = ""
+    weaponsName = ["/手榴弹", "/步枪", "/轻机枪", "/手枪", "/半自动", "/霰弹枪", "/精英兵", "/近战", "/冲锋枪", "/装备"]
+    weaponsKinds = ['手榴彈', '步槍', '輕機槍', '佩槍', '半自動步槍', '霰彈槍', '戰場裝備', '近戰武器', '衝鋒槍', '配備', '制式步槍']
+    for i in weaponsName:
+        name = command.replace(str(i), "")
+        if not name.startswith("/"):
+            break
+    if name == "":
+        name = FindBinding(id)
+    if name is None:
+        return "未绑定昵称！请使用“/绑定+（空格）+[ID]”绑定昵称"
+    url = "https://api.gametools.network/bf1/weapons/?name=" + name + "&lang=zh-TW"
+    bg = "./pic/weapons" + str(random.randint(1, 8)) + ".jpg"
+    SavePic = "./Temp/" + str(int(time.time())) + ".jpg"
+
+    html = await aioRequest(url)
+    if html is not None:
+        data = json.loads(html)
+        if 'error' not in data:
+            im = Image.open(bg)
+            draw = ImageDraw.Draw(im)
+            nameFont = ImageFont.truetype(u"./font/DFP_sougeitai_W5-d813b437.ttf", size=35)
+            titleFont = ImageFont.truetype(u"./font/Deng.ttf", size=20)
+            detailFont = ImageFont.truetype(u"./font/Deng.ttf", size=16)
+            weaponsData = []
+            newName = ""
+            for a in range(len(weaponsName)):
+                if command.startswith(weaponsName[a]):
+                    for i in data['weapons']:
+                        if i['type'] == weaponsKinds[a]:
+                            weaponsData.append(i)
+                            newName = name + " - " + weaponsKinds[a]
+            if command.startswith("步枪"):
+                for i in data['weapons']:
+                    if i['type'] == weaponsKinds[10]:
+                        weaponsData.append(i)
+            draw.text((50, 30), newName, font=nameFont)
+            # weaponsData = data['weapons']
             weaponsList = sorted(weaponsData, key=lambda student: student['kills'], reverse=True)
 
             for i in range(5):
@@ -415,6 +501,12 @@ async def BFservers(id, command):
             return await PicWeapons(FindBinding(id))
         else:
             return await PicWeapons(command.replace("/武器", "").replace(" ", ""))
+
+    elif any([command.startswith("/手榴弹"), command.startswith("/步枪"), command.startswith("/轻机枪"), command.startswith("/手枪"),
+              command.startswith("/半自动"), command.startswith("/霰弹枪"), command.startswith("/精英兵"), command.startswith("/近战"),
+              command.startswith("/冲锋枪"), command.startswith("/装备")]):
+        return await PicWeaponsKinds(id, command.replace(" ", ""))
+
     elif command.startswith("/载具"):
         if command.replace("/载具", "") == "":
             return await PicVehicles(FindBinding(id))
@@ -432,6 +524,7 @@ async def BFservers(id, command):
                "“/服务器+（空格）+[名称]”\n" \
                "“/战绩+（空格）+[ID]”\n" \
                "“/武器+（空格）+[ID]”\n" \
+               "(现已支持查询手榴弹|步枪|轻机枪|手枪|半自动|霰弹枪|精英兵|近战|冲锋枪|装备)\n" \
                "“/载具+（id）”\n" \
                "“/最近+（id）”\n" \
                "“/帮助”\n" \
